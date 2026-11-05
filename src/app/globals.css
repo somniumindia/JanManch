@@ -27,8 +27,6 @@
     --color-blue-500: var(--color-accent);
     --color-blue-600: var(--color-accent);
     --color-blue-700: #3D256B;
-    --color-blue-900: #23163E;
-    --color-indigo-700: #3D256B;
     --color-rose-50: var(--color-oppose-soft);
     --color-rose-200: #EEC895;
     --color-rose-300: oklch(81% 0.117 11.638);
@@ -76,7 +74,6 @@
     --font-weight-black: 900;
     --tracking-tight: -0.025em;
     --tracking-normal: 0em;
-    --tracking-wide: 0.025em;
     --tracking-wider: 0.05em;
     --leading-tight: 1.25;
     --leading-snug: 1.375;
@@ -797,9 +794,6 @@
   .rounded-3xl {
     border-radius: var(--radius-3xl);
   }
-  .rounded-\[14px\] {
-    border-radius: 14px;
-  }
   .rounded-full {
     border-radius: calc(infinity * 1px);
   }
@@ -815,10 +809,6 @@
   .rounded-t-2xl {
     border-top-left-radius: var(--radius-2xl);
     border-top-right-radius: var(--radius-2xl);
-  }
-  .rounded-t-3xl {
-    border-top-left-radius: var(--radius-3xl);
-    border-top-right-radius: var(--radius-3xl);
   }
   .border {
     border-style: var(--tw-border-style);
@@ -875,20 +865,11 @@
       border-color: color-mix(in oklab, var(--color-amber-200) 90%, transparent);
     }
   }
-  .border-blue-100 {
-    border-color: var(--color-blue-100);
-  }
-  .border-blue-200 {
-    border-color: var(--color-blue-200);
-  }
   .border-blue-200\/80 {
     border-color: color-mix(in srgb, #C7B8E0 80%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       border-color: color-mix(in oklab, var(--color-blue-200) 80%, transparent);
     }
-  }
-  .border-blue-600 {
-    border-color: var(--color-blue-600);
   }
   .border-emerald-200 {
     border-color: var(--color-emerald-200);
@@ -942,12 +923,6 @@
     border-color: color-mix(in srgb, #D9D7E3 80%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       border-color: color-mix(in oklab, var(--color-slate-200) 80%, transparent);
-    }
-  }
-  .border-slate-200\/90 {
-    border-color: color-mix(in srgb, #D9D7E3 90%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      border-color: color-mix(in oklab, var(--color-slate-200) 90%, transparent);
     }
   }
   .border-slate-300 {
@@ -1012,12 +987,6 @@
   }
   .bg-blue-50 {
     background-color: var(--color-blue-50);
-  }
-  .bg-blue-50\/70 {
-    background-color: color-mix(in srgb, #ECE7F5 70%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-blue-50) 70%, transparent);
-    }
   }
   .bg-blue-100 {
     background-color: var(--color-blue-100);
@@ -1112,12 +1081,6 @@
   .bg-slate-50 {
     background-color: var(--color-slate-50);
   }
-  .bg-slate-50\/70 {
-    background-color: color-mix(in srgb, #F6F5F9 70%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-slate-50) 70%, transparent);
-    }
-  }
   .bg-slate-100 {
     background-color: var(--color-slate-100);
   }
@@ -1126,12 +1089,6 @@
   }
   .bg-slate-600 {
     background-color: var(--color-slate-600);
-  }
-  .bg-slate-900\/40 {
-    background-color: color-mix(in srgb, #17162B 40%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-slate-900) 40%, transparent);
-    }
   }
   .bg-support {
     background-color: var(--color-support);
@@ -1165,22 +1122,6 @@
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-white) 90%, transparent);
     }
-  }
-  .bg-gradient-to-r {
-    --tw-gradient-position: to right in oklab;
-    background-image: linear-gradient(var(--tw-gradient-stops));
-  }
-  .bg-gradient-to-tr {
-    --tw-gradient-position: to top right in oklab;
-    background-image: linear-gradient(var(--tw-gradient-stops));
-  }
-  .from-blue-600 {
-    --tw-gradient-from: var(--color-blue-600);
-    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
-  }
-  .to-indigo-700 {
-    --tw-gradient-to: var(--color-indigo-700);
-    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
   }
   .stroke-\[2\.5\] {
     stroke-width: 2.5;
@@ -1465,10 +1406,6 @@
     --tw-tracking: var(--tracking-tight);
     letter-spacing: var(--tracking-tight);
   }
-  .tracking-wide {
-    --tw-tracking: var(--tracking-wide);
-    letter-spacing: var(--tracking-wide);
-  }
   .tracking-wider {
     --tw-tracking: var(--tracking-wider);
     letter-spacing: var(--tracking-wider);
@@ -1499,9 +1436,6 @@
   }
   .text-blue-700 {
     color: var(--color-blue-700);
-  }
-  .text-blue-900 {
-    color: var(--color-blue-900);
   }
   .text-emerald-600 {
     color: var(--color-emerald-600);
@@ -1578,9 +1512,6 @@
   .underline {
     text-decoration-line: underline;
   }
-  .underline-offset-2 {
-    text-underline-offset: 2px;
-  }
   .antialiased {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -1598,14 +1529,6 @@
     --tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.25));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .shadow-2xs {
-    --tw-shadow: 0 1px var(--tw-shadow-color, rgb(0 0 0 / 0.05));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-  .shadow-inner {
-    --tw-shadow: inset 0 2px 4px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.05));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
   .shadow-lg {
     --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
@@ -1616,10 +1539,6 @@
   }
   .shadow-sm {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-  .shadow-xl {
-    --tw-shadow: 0 20px 25px -5px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 8px 10px -6px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .shadow-xs {
@@ -1803,12 +1722,6 @@
         background-color: color-mix(in oklab, var(--color-rule) 40%, transparent);
       }
     }
-    .hover\:bg-slate-100:hover {
-      background-color: var(--color-slate-100);
-    }
-    .hover\:bg-slate-200:hover {
-      background-color: var(--color-slate-200);
-    }
     .hover\:bg-slate-200\/80:hover {
       background-color: color-mix(in srgb, #D9D7E3 80%, transparent);
     }
@@ -1834,9 +1747,6 @@
     .hover\:text-accent:hover {
       color: var(--color-accent);
     }
-    .hover\:text-blue-700:hover {
-      color: var(--color-blue-700);
-    }
     .hover\:text-ink:hover {
       color: var(--color-ink);
     }
@@ -1855,35 +1765,15 @@
     .hover\:opacity-95:hover {
       opacity: 95%;
     }
-    .hover\:brightness-105:hover {
-      --tw-brightness: brightness(105%);
-      filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
-    }
   }
   .focus\:border-accent:focus {
     border-color: var(--color-accent);
   }
-  .focus\:border-blue-500:focus {
-    border-color: var(--color-blue-500);
-  }
   .focus\:bg-surface:focus {
     background-color: var(--color-surface);
   }
-  .focus\:bg-white:focus {
-    background-color: var(--color-white);
-  }
-  .focus\:ring-2:focus {
-    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-  .focus\:ring-blue-500:focus {
-    --tw-ring-color: var(--color-blue-500);
-  }
-  .focus\:ring-blue-500\/20:focus {
-    --tw-ring-color: color-mix(in srgb, #4B2E83 20%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      --tw-ring-color: color-mix(in oklab, var(--color-blue-500) 20%, transparent);
-    }
+  .focus\:ring-accent:focus {
+    --tw-ring-color: var(--color-accent);
   }
   .focus\:outline-none:focus {
     --tw-outline-style: none;
@@ -1929,8 +1819,8 @@
     .sm\:items-center {
       align-items: center;
     }
-    .sm\:rounded-2xl {
-      border-radius: var(--radius-2xl);
+    .sm\:rounded-xl {
+      border-radius: var(--radius-xl);
     }
     .sm\:p-4 {
       padding: calc(var(--spacing) * 4);
@@ -2094,48 +1984,6 @@
   inherits: false;
   initial-value: solid;
 }
-@property --tw-gradient-position {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-gradient-from {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --tw-gradient-via {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --tw-gradient-to {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --tw-gradient-stops {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-gradient-via-stops {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-gradient-from-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-@property --tw-gradient-via-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 50%;
-}
-@property --tw-gradient-to-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 100%;
-}
 @property --tw-leading {
   syntax: "*";
   inherits: false;
@@ -2253,59 +2101,6 @@
   syntax: "*";
   inherits: false;
 }
-@property --tw-blur {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-brightness {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-contrast {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-grayscale {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-hue-rotate {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-invert {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-opacity {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-saturate {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-sepia {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-drop-shadow {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-drop-shadow-color {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-drop-shadow-alpha {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 100%;
-}
-@property --tw-drop-shadow-size {
-  syntax: "*";
-  inherits: false;
-}
 @property --tw-scale-x {
   syntax: "*";
   inherits: false;
@@ -2345,15 +2140,6 @@
       --tw-translate-z: 0;
       --tw-space-y-reverse: 0;
       --tw-border-style: solid;
-      --tw-gradient-position: initial;
-      --tw-gradient-from: #0000;
-      --tw-gradient-via: #0000;
-      --tw-gradient-to: #0000;
-      --tw-gradient-stops: initial;
-      --tw-gradient-via-stops: initial;
-      --tw-gradient-from-position: 0%;
-      --tw-gradient-via-position: 50%;
-      --tw-gradient-to-position: 100%;
       --tw-leading: initial;
       --tw-font-weight: initial;
       --tw-tracking: initial;
@@ -2381,19 +2167,6 @@
       --tw-backdrop-saturate: initial;
       --tw-backdrop-sepia: initial;
       --tw-duration: initial;
-      --tw-blur: initial;
-      --tw-brightness: initial;
-      --tw-contrast: initial;
-      --tw-grayscale: initial;
-      --tw-hue-rotate: initial;
-      --tw-invert: initial;
-      --tw-opacity: initial;
-      --tw-saturate: initial;
-      --tw-sepia: initial;
-      --tw-drop-shadow: initial;
-      --tw-drop-shadow-color: initial;
-      --tw-drop-shadow-alpha: 100%;
-      --tw-drop-shadow-size: initial;
       --tw-scale-x: 1;
       --tw-scale-y: 1;
       --tw-scale-z: 1;
