@@ -5,27 +5,34 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { Region } from '@/lib/types';
 import {
-  Sparkles,
   ShieldCheck,
   MapPin,
-  AtSign,
   Edit3,
   LogOut,
-  Layers,
-  MessageSquare,
-  ThumbsUp,
-  X,
-  Check,
   User,
   ArrowRight,
-  Clock,
   ChevronRight,
+  X,
+  Check,
+  Plus,
 } from 'lucide-react';
 
 import { ALL_STATES_AND_UTS } from '@/constants/regions';
 
 export const CitizenProfileTab: React.FC = () => {
-  const { user, posts, argumentsList, signOut, updateProfile, openAuthModal, openDebateDrawerById } = useApp();
+  const {
+    user,
+    posts,
+    argumentsList,
+    signOut,
+    updateProfile,
+    openAuthModal,
+    openDebateDrawerById,
+    setActiveTab,
+    language,
+  } = useApp();
+
+  const isHindi = language === 'hi';
 
   const [activeSegment, setActiveSegment] = useState<'propositions' | 'arguments'>('propositions');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,49 +45,51 @@ export const CitizenProfileTab: React.FC = () => {
   if (!user) {
     return (
       <div className="px-4 py-8 space-y-4">
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm text-center space-y-4">
-          <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
-            <User className="w-8 h-8" />
+        <div className="p-6 rounded-xl bg-surface border border-rule text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-accent-soft text-accent flex items-center justify-center mx-auto">
+            <User className="w-7 h-7" />
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-base font-extrabold text-slate-900">
-              Join the Citizen Agora
+            <h2 className="text-base font-semibold text-ink font-serif">
+              {isHindi ? 'नागरिक मंच से जुड़ें' : 'Join JanManch'}
             </h2>
-            <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
-              Sign in or create your citizen account to submit policy propositions, cast verified votes, and build your civic deliberation score.
+            <p className="text-xs text-ink-muted leading-relaxed max-w-xs mx-auto">
+              {isHindi
+                ? 'नीतिगत बहस शुरू करने, प्रमाणित मत देने और अपनी नागरिक साख दर्ज करने के लिए प्रवेश करें।'
+                : 'Sign in or create your citizen account to propose policies, cast verified votes, and build your civic score.'}
             </p>
           </div>
 
           <div className="pt-2">
             <button
-              onClick={() => openAuthModal('Sign in to access your civic profile and record deliberative votes.')}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:brightness-105 transition-all flex items-center justify-center gap-1.5"
+              onClick={() => openAuthModal(isHindi ? 'अपनी प्रोफ़ाइल देखने के लिए प्रवेश करें।' : 'Sign in to access your civic profile and record votes.')}
+              className="w-full py-2.5 px-4 rounded-xl bg-accent text-surface font-semibold text-xs hover:opacity-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
             >
-              <span>Sign In / Create Account</span>
+              <span>{isHindi ? 'प्रवेश करें / खाता बनाएं' : 'Sign in / Create account'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Legal & Platform Transparency */}
-        <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
+        <div className="p-3 rounded-xl bg-surface border border-rule">
           <Link
             href="/terms"
-            className="w-full p-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between text-left group"
+            className="w-full p-2 rounded-lg hover:bg-paper transition-colors flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-2.5">
               <span className="text-sm">📜</span>
               <div>
-                <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
-                  Terms of Service &amp; Legal Disclaimer
+                <div className="text-xs font-semibold text-ink group-hover:text-accent transition-colors">
+                  {isHindi ? 'सेवा की शर्तें एवं कानूनी अस्वीकरण' : 'Terms of service & legal disclaimer'}
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium">
-                  Independent platform notice &amp; deliberation guidelines
+                <div className="text-[10px] text-ink-muted">
+                  {isHindi ? 'स्वतंत्र नागरिक मंच एवं दिशानिर्देश' : 'Independent civic platform notice & guidelines'}
                 </div>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform group-hover:translate-x-0.5" />
+            <ChevronRight className="w-4 h-4 text-ink-muted group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
       </div>
@@ -124,146 +133,161 @@ export const CitizenProfileTab: React.FC = () => {
   return (
     <div className="px-4 py-4 space-y-4">
       {/* Profile Card */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3.5">
+      <div className="p-4 rounded-xl bg-surface border border-rule space-y-3.5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 flex items-center justify-center font-black text-white text-xl shadow-sm shadow-blue-500/20">
+            <div className="w-12 h-12 rounded-xl bg-accent text-surface flex items-center justify-center font-bold text-lg">
               {user.name.charAt(0)}
             </div>
 
             <div className="space-y-0.5">
               <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-extrabold text-slate-900">{user.name}</h2>
+                <h2 className="text-sm font-semibold text-ink">{user.name}</h2>
                 {user.isVerifiedVoter && (
-                  <span title="Verified Citizen Voter">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span title={isHindi ? 'प्रमाणित नागरिक' : 'Verified citizen'}>
+                    <ShieldCheck className="w-4 h-4 text-support" />
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 font-medium">@{user.username}</p>
-              <div className="flex items-center gap-1 text-[11px] text-blue-700 font-semibold">
-                <MapPin className="w-3 h-3 text-blue-500" />
-                <span>{user.region} Agora Citizen</span>
+              <p className="text-xs text-ink-muted">@{user.username}</p>
+              <div className="flex items-center gap-1 text-[11px] text-accent font-medium">
+                <MapPin className="w-3 h-3 text-accent" />
+                <span>{user.region}</span>
               </div>
             </div>
           </div>
 
           <button
             onClick={handleOpenEdit}
-            className="p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors flex items-center gap-1"
+            className="p-2 rounded-xl bg-paper border border-rule hover:bg-rule/40 text-ink text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer min-h-[36px]"
           >
-            <Edit3 className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-[11px]">Edit</span>
+            <Edit3 className="w-3.5 h-3.5 text-ink-muted" />
+            <span className="text-[11px]">{isHindi ? 'बदलें' : 'Edit'}</span>
           </button>
         </div>
 
         {/* Bio */}
         {user.bio && (
-          <p className="text-xs text-slate-600 leading-relaxed pt-1 border-t border-slate-100 font-normal">
+          <p className="text-xs text-ink-muted leading-relaxed pt-2 border-t border-rule font-normal">
             &ldquo;{user.bio}&rdquo;
           </p>
         )}
       </div>
 
-      {/* Prominent Civic Karma Score Card */}
-      <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-blue-100 shadow-sm space-y-2.5">
+      {/* Civic Karma Score Card - Light and quiet, no gradients */}
+      <div className="p-4 rounded-xl bg-surface border border-rule space-y-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                Civic Karma Score
-              </h3>
-              <span className="text-[10px] text-slate-400 font-medium">Deliberative Standing</span>
-            </div>
+          <div>
+            <h3 className="text-xs font-semibold text-ink">
+              {isHindi ? 'नागरिक कर्म स्कोर' : 'Civic karma score'}
+            </h3>
+            <span className="text-[10px] text-ink-muted">
+              {isHindi ? 'मंच पर आपकी सहभागिता साख' : 'Deliberative standing'}
+            </span>
           </div>
 
           <div className="text-right">
-            <span className="text-lg font-black text-blue-700">{user.karmaScore}</span>
-            <span className="text-[10px] text-slate-400 font-bold ml-1">pts</span>
+            <span className="text-xl font-bold text-accent">{user.karmaScore}</span>
+            <span className="text-[10px] text-ink-muted ml-1">pts</span>
           </div>
         </div>
 
         {/* Explanation */}
-        <p className="text-xs text-blue-900/80 font-medium leading-relaxed bg-white/70 p-2.5 rounded-xl border border-blue-100/70">
-          Earn +5 Karma each time neighbors upvote your debate points, +10 Karma per vote cast, and +30 Karma for initiating constructive propositions.
+        <p className="text-xs text-ink-muted leading-relaxed bg-paper p-2.5 rounded-lg border border-rule">
+          {isHindi
+            ? 'आपके तर्कों को समर्थन मिलने पर +5 अंक, मतदान करने पर +10 अंक, और रचनात्मक बहस शुरू करने पर +30 अंक अर्जित करें।'
+            : 'Earn +5 karma when citizens upvote your arguments, +10 karma per vote cast, and +30 karma for initiating constructive debates.'}
         </p>
 
         {/* Participation Metrics */}
-        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-600 font-semibold">
-          <div className="p-2 rounded-xl bg-white/60 border border-slate-200/60 text-center">
-            <span className="text-slate-900 font-bold block text-xs">
+        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-ink">
+          <div className="p-2 rounded-lg bg-paper border border-rule text-center">
+            <span className="text-ink font-semibold block text-sm">
               {Object.keys(user.votedDebates || {}).length}
             </span>
-            <span className="text-[10px] text-slate-500">Referendums Voted</span>
+            <span className="text-[10px] text-ink-muted">
+              {isHindi ? 'दिए गए मत' : 'Votes cast'}
+            </span>
           </div>
 
-          <div className="p-2 rounded-xl bg-white/60 border border-slate-200/60 text-center">
-            <span className="text-slate-900 font-bold block text-xs">
+          <div className="p-2 rounded-lg bg-paper border border-rule text-center">
+            <span className="text-ink font-semibold block text-sm">
               {(user.upvotedArgumentIds || []).length}
             </span>
-            <span className="text-[10px] text-slate-500">Arguments Backed</span>
+            <span className="text-[10px] text-ink-muted">
+              {isHindi ? 'समर्थित तर्क' : 'Arguments backed'}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Segmented Tabs: My Propositions vs My Arguments */}
+      {/* Segmented Tabs: My Debates vs My Arguments */}
       <div className="space-y-3">
-        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+        <div className="grid grid-cols-2 p-1 bg-paper rounded-xl text-xs font-medium border border-rule">
           <button
             onClick={() => setActiveSegment('propositions')}
-            className={`py-2 rounded-lg transition-all ${
+            className={`py-2 rounded-lg transition-all cursor-pointer ${
               activeSegment === 'propositions'
-                ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-surface text-ink font-semibold border border-rule'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
-            My Propositions ({myPosts.length})
+            {isHindi ? 'मेरी बहसें' : 'My debates'} ({myPosts.length})
           </button>
           <button
             onClick={() => setActiveSegment('arguments')}
-            className={`py-2 rounded-lg transition-all ${
+            className={`py-2 rounded-lg transition-all cursor-pointer ${
               activeSegment === 'arguments'
-                ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-surface text-ink font-semibold border border-rule'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
-            My Arguments ({myArguments.length})
+            {isHindi ? 'मेरे तर्क' : 'My arguments'} ({myArguments.length})
           </button>
         </div>
 
         {/* Segment Content */}
         {activeSegment === 'propositions' ? (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {myPosts.length === 0 ? (
-              <div className="p-6 text-center bg-white rounded-2xl border border-slate-200/80 space-y-1">
-                <p className="text-xs font-bold text-slate-700">No propositions authored yet</p>
-                <p className="text-[11px] text-slate-400">
-                  Tap the center (+) button below to launch your first public policy debate!
+              <div className="p-6 text-center bg-surface rounded-xl border border-rule space-y-3">
+                <p className="text-xs font-medium text-ink">
+                  {isHindi ? 'आपने अभी तक कोई बहस शुरू नहीं की है' : 'No debates authored yet'}
                 </p>
+                <p className="text-[11px] text-ink-muted">
+                  {isHindi
+                    ? 'नीतिगत मुद्दे पर अपनी पहली लोक चर्चा शुरू करें।'
+                    : 'Start your first public policy debate on an issue that matters to you.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('create')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent text-surface text-xs font-semibold hover:opacity-95 transition-opacity cursor-pointer min-h-[44px]"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isHindi ? 'अपनी पहली बहस शुरू करें' : 'Start your first debate'}</span>
+                </button>
               </div>
             ) : (
               myPosts.map((p) => (
                 <div
                   key={p.id}
                   onClick={() => openDebateDrawerById(p.id)}
-                  className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-xs transition-shadow cursor-pointer space-y-2 group"
+                  className="p-3.5 rounded-xl bg-surface border border-rule hover:border-accent transition-colors cursor-pointer space-y-2 group"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-paper text-ink border border-rule">
                       {p.topic} &bull; {p.region}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      {p.agree_votes + p.disagree_votes} votes
+                    <span className="text-[10px] text-ink-muted font-normal">
+                      {(p.agree_votes || 0) + (p.disagree_votes || 0)} {isHindi ? 'मत' : 'votes'}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition-colors leading-snug">
+                  <h4 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors leading-snug font-serif">
                     {p.title}
                   </h4>
-                  <div className="flex items-center justify-between text-[11px] text-blue-700 font-bold pt-1">
-                    <span>View Deliberation Floor</span>
+                  <div className="flex items-center justify-between text-[11px] text-accent font-medium pt-1">
+                    <span>{isHindi ? 'बहस देखें' : 'View discussion'}</span>
                     <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </div>
@@ -271,41 +295,54 @@ export const CitizenProfileTab: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {myArguments.length === 0 ? (
-              <div className="p-6 text-center bg-white rounded-2xl border border-slate-200/80 space-y-1">
-                <p className="text-xs font-bold text-slate-700">No arguments submitted yet</p>
-                <p className="text-[11px] text-slate-400">
-                  Join any deliberation on The Agora feed and submit your pro or con reasoning.
+              <div className="p-6 text-center bg-surface rounded-xl border border-rule space-y-3">
+                <p className="text-xs font-medium text-ink">
+                  {isHindi ? 'आपने अभी तक कोई तर्क नहीं दिया है' : 'No arguments submitted yet'}
                 </p>
+                <p className="text-[11px] text-ink-muted">
+                  {isHindi
+                    ? 'बहस सूची में जाएं और किसी भी चर्चा में अपना पक्ष रखें।'
+                    : 'Browse discussions and share your perspective in favor or against.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('agora')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-paper border border-rule text-ink text-xs font-semibold hover:bg-rule/40 transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <span>{isHindi ? 'बहसें ब्राउज़ करें' : 'Browse debates'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             ) : (
               myArguments.map((arg) => (
                 <div
                   key={arg.id}
                   onClick={() => openDebateDrawerById(arg.post_id)}
-                  className={`p-3 rounded-2xl border transition-shadow cursor-pointer space-y-1.5 ${
+                  className={`p-3 rounded-xl border border-rule bg-surface hover:border-accent transition-colors cursor-pointer space-y-1.5 border-l-4 ${
                     arg.stance === 'pro'
-                      ? 'bg-emerald-50/70 border-emerald-200'
-                      : 'bg-rose-50/70 border-rose-200'
+                      ? 'border-l-support'
+                      : 'border-l-oppose'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-md ${
                         arg.stance === 'pro'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-rose-600 text-white'
+                          ? 'bg-support-soft text-support-strong'
+                          : 'bg-oppose-soft text-oppose-strong'
                       }`}
                     >
-                      {arg.stance === 'pro' ? 'In Favor' : 'Against'}
+                      {arg.stance === 'pro'
+                        ? (isHindi ? 'समर्थन' : 'In favor')
+                        : (isHindi ? 'विरोध' : 'Against')}
                     </span>
-                    <div className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600">
-                      <ThumbsUp className="w-3 h-3 text-emerald-600" />
-                      <span>{arg.upvotes} upvotes</span>
-                    </div>
+                    <span className="text-[10px] text-ink-muted">
+                      {arg.upvotes} {isHindi ? 'अपवोट' : 'upvotes'}
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                  <p className="text-xs text-ink leading-relaxed">
                     &ldquo;{arg.content}&rdquo;
                   </p>
                 </div>
@@ -316,51 +353,51 @@ export const CitizenProfileTab: React.FC = () => {
       </div>
 
       {/* Account Settings & Legal */}
-      <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1">
-        <div className="px-2 py-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          Account &amp; Platform Transparency
+      <div className="p-3 rounded-xl bg-surface border border-rule space-y-1">
+        <div className="px-2 py-0.5 text-[10px] font-semibold text-ink-muted">
+          {isHindi ? 'मंच दिशानिर्देश' : 'Platform & guidelines'}
         </div>
         <Link
           href="/terms"
-          className="w-full p-2.5 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between text-left group"
+          className="w-full p-2.5 rounded-lg hover:bg-paper transition-colors flex items-center justify-between text-left group"
         >
           <div className="flex items-center gap-2.5">
             <span className="text-sm">📜</span>
             <div>
-              <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
-                Terms of Service &amp; Legal Disclaimer
+              <div className="text-xs font-semibold text-ink group-hover:text-accent transition-colors">
+                {isHindi ? 'सेवा की शर्तें एवं कानूनी अस्वीकरण' : 'Terms of service & legal disclaimer'}
               </div>
-              <div className="text-[10px] text-slate-500 font-medium">
-                Independent platform rules &amp; government non-affiliation notice
+              <div className="text-[10px] text-ink-muted">
+                {isHindi ? 'स्वतंत्र गैर-सरकारी नागरिक विमर्श' : 'Independent civic platform rules & non-affiliation notice'}
               </div>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="w-4 h-4 text-ink-muted group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>
 
-      {/* Red-Accented Sign Out Button */}
+      {/* Sign Out Button */}
       <div className="pt-1">
         <button
           onClick={signOut}
-          className="w-full py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+          className="w-full py-2.5 px-4 rounded-xl border border-oppose-strong/30 bg-oppose-soft hover:bg-oppose-soft/80 text-oppose-strong text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
         >
-          <LogOut className="w-4 h-4 text-rose-600" />
-          <span>Sign Out of JanManch</span>
+          <LogOut className="w-4 h-4 text-oppose-strong" />
+          <span>{isHindi ? 'जनमंच से बाहर निकलें' : 'Sign out'}</span>
         </button>
       </div>
 
-      {/* Edit Profile Modal / Drawer */}
+      {/* Edit Profile Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="relative w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden p-5 space-y-3.5">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                Edit Citizen Profile
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="relative w-full max-w-sm bg-surface rounded-xl border border-rule overflow-hidden p-5 space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-rule">
+              <h3 className="text-xs font-semibold text-ink">
+                {isHindi ? 'प्रोफ़ाइल संपादित करें' : 'Edit citizen profile'}
               </h3>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-full bg-paper text-ink-muted hover:bg-rule/40 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -368,25 +405,25 @@ export const CitizenProfileTab: React.FC = () => {
 
             <form onSubmit={handleSaveProfile} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-1">
-                  Full Public Name
+                <label className="block text-[11px] font-medium text-ink mb-1">
+                  {isHindi ? 'पूरा नाम' : 'Full public name'}
                 </label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-paper border border-rule focus:bg-surface focus:outline-none focus:border-accent text-ink font-normal min-h-[44px]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-1">
-                  City / Constituency
+                <label className="block text-[11px] font-medium text-ink mb-1">
+                  {isHindi ? 'राज्य / क्षेत्र' : 'State / region'}
                 </label>
                 <select
                   value={editRegion}
                   onChange={(e) => setEditRegion(e.target.value as Region)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 font-semibold"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-paper border border-rule focus:bg-surface focus:outline-none focus:border-accent text-ink font-normal min-h-[44px]"
                 >
                   {ALL_STATES_AND_UTS.map((r) => (
                     <option key={r} value={r}>
@@ -397,15 +434,15 @@ export const CitizenProfileTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-1">
-                  Civic Bio & Perspectives
+                <label className="block text-[11px] font-medium text-ink mb-1">
+                  {isHindi ? 'नागरिक परिचय' : 'Civic bio & perspectives'}
                 </label>
                 <textarea
                   rows={3}
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
-                  placeholder="Tell fellow citizens about your policy interests..."
-                  className="w-full p-2.5 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 leading-relaxed"
+                  placeholder={isHindi ? 'अपनी नीतिगत रुचियों के बारे में बताएं...' : 'Tell fellow citizens about your policy interests...'}
+                  className="w-full p-2.5 text-xs rounded-xl bg-paper border border-rule focus:bg-surface focus:outline-none focus:border-accent text-ink leading-relaxed"
                 />
               </div>
 
@@ -413,17 +450,17 @@ export const CitizenProfileTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50"
+                  className="py-2 px-3 rounded-xl border border-rule bg-surface text-ink text-xs font-medium hover:bg-paper cursor-pointer min-h-[44px]"
                 >
-                  Cancel
+                  {isHindi ? 'रद्द करें' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2 px-3 rounded-xl bg-accent text-surface text-xs font-semibold hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{isSaving ? 'Saving...' : 'Save Profile'}</span>
+                  <span>{isSaving ? (isHindi ? 'सहेज रहे हैं...' : 'Saving...') : (isHindi ? 'सहेजें' : 'Save profile')}</span>
                 </button>
               </div>
             </form>

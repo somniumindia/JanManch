@@ -2,22 +2,13 @@
 
 import React from 'react';
 import { useApp } from '@/context/AppContext';
-import { AgoraPost, Topic } from '@/lib/types';
+import { Topic } from '@/lib/types';
 import {
-  TrendingUp,
   Scale,
   Award,
   Sparkles,
-  MessageSquare,
-  ThumbsUp,
-  ThumbsDown,
   ChevronRight,
-  Flame,
-  PieChart,
   BarChart3,
-  Layers,
-  MapPin,
-  ArrowRight,
 } from 'lucide-react';
 import { TOPIC_NAMES } from '@/lib/translations';
 
@@ -26,35 +17,48 @@ export const CommunityPulseTab: React.FC = () => {
   const isHindi = language === 'hi';
 
   // Compute total votes and interactions
-  const totalVotesCast = posts.reduce((acc, p) => acc + p.agree_votes + p.disagree_votes, 0);
+  const totalVotesCast = posts.reduce((acc, p) => acc + (p.agree_votes || 0) + (p.disagree_votes || 0), 0);
   const totalArguments = argumentsList.length;
 
-  // Consensus Analysis
-  const consensusAnalysis = posts.map((p) => {
-    const total = p.agree_votes + p.disagree_votes;
-    const agreeRatio = total > 0 ? p.agree_votes / total : 0.5;
-    const polarizationScore = 1 - Math.abs(agreeRatio - 0.5) * 2; // 1.0 = exact 50/50, 0 = 100/0
-    const consensusScore = Math.max(agreeRatio, 1 - agreeRatio); // 0.5 to 1.0
-    const agreePercent = Math.round(agreeRatio * 100);
-    const disagreePercent = 100 - agreePercent;
+  // Filter posts that have received at least 1 vote for consensus & polarization analysis
+  const votedPostsAnalysis = posts
+    .map((p) => {
+      const agree = p.agree_votes || 0;
+      const disagree = p.disagree_votes || 0;
+      const total = agree + disagree;
+      if (total === 0) return null;
 
-    return {
-      post: p,
-      total,
-      agreePercent,
-      disagreePercent,
-      polarizationScore,
-      consensusScore,
-    };
-  });
+      const agreeRatio = agree / total;
+      // 1.0 = exact 50/50 split, 0.0 = completely one-sided (100/0)
+      const polarizationScore = 1 - Math.abs(agreeRatio - 0.5) * 2;
+      // 0.5 to 1.0 (how dominant the majority side is)
+      const consensusScore = Math.max(agreeRatio, 1 - agreeRatio);
+      const agreePercent = Math.round(agreeRatio * 100);
+      const disagreePercent = 100 - agreePercent;
+
+      return {
+        post: p,
+        total,
+        agreePercent,
+        disagreePercent,
+        polarizationScore,
+        consensusScore,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   // Top Polarized Debates: Highest polarization score (closest to 50/50)
-  const polarizedDebates = [...consensusAnalysis]
+  // Must have at least 1 vote, sorted by polarization score descending
+  const polarizedDebates = [...votedPostsAnalysis]
     .sort((a, b) => b.polarizationScore - a.polarizationScore)
     .slice(0, 3);
 
-  // Highest Consensus Topics: Policies where highest consensus score (>75-80%)
-  const highestConsensusDebates = [...consensusAnalysis]
+  const polarizedIds = new Set(polarizedDebates.map((d) => d.post.id));
+
+  // Highest Consensus Topics: Policies where majority agrees or disagrees strongly (> 65%)
+  // Deduplicate: avoid posts already listed under polarized debates
+  const highestConsensusDebates = [...votedPostsAnalysis]
+    .filter((d) => !polarizedIds.has(d.post.id))
     .sort((a, b) => b.consensusScore - a.consensusScore)
     .slice(0, 3);
 
@@ -78,43 +82,38 @@ export const CommunityPulseTab: React.FC = () => {
   const totalCategorized = posts.length || 1;
 
   const topicColors: Record<string, { bar: string; text: string; bg: string }> = {
-    Economy: { bar: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-    Education: { bar: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
-    'Civic Life': { bar: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-    Technology: { bar: 'bg-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50' },
+    Economy: { bar: 'bg-support', text: 'text-support-strong', bg: 'bg-support-soft' },
+    Education: { bar: 'bg-accent', text: 'text-accent', bg: 'bg-accent-soft' },
+    'Civic Life': { bar: 'bg-oppose', text: 'text-oppose-strong', bg: 'bg-oppose-soft' },
+    Technology: { bar: 'bg-neutral', text: 'text-ink', bg: 'bg-paper' },
   };
 
   return (
     <div className="px-4 py-4 space-y-4">
-      {/* Overview Stat Strip */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-2xs text-center space-y-0.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            {isHindi ? 'विमर्श मुद्दे' : 'Deliberations'}
-          </span>
-          <p className="text-base font-extrabold text-slate-900">{posts.length}</p>
-          <span className="text-[9.5px] text-blue-600 font-semibold">
-            {isHindi ? 'सक्रिय जनमत' : 'Active Referendums'}
+      {/* Overview Stat Strip - Single inline row */}
+      <div className="flex items-center justify-around p-3 bg-surface border border-rule rounded-xl text-center">
+        <div>
+          <p className="text-lg font-bold text-ink leading-tight">{posts.length}</p>
+          <span className="text-[11px] text-ink-muted">
+            {isHindi ? 'विमर्श' : 'Debates'}
           </span>
         </div>
 
-        <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-2xs text-center space-y-0.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            {isHindi ? 'कुल नागरिक मत' : 'Votes Cast'}
-          </span>
-          <p className="text-base font-extrabold text-slate-900">{totalVotesCast.toLocaleString()}</p>
-          <span className="text-[9.5px] text-emerald-600 font-semibold">
-            {isHindi ? 'प्रमाणित नागरिक' : 'Verified Voices'}
+        <div className="h-8 w-px bg-rule" />
+
+        <div>
+          <p className="text-lg font-bold text-ink leading-tight">{totalVotesCast.toLocaleString()}</p>
+          <span className="text-[11px] text-ink-muted">
+            {isHindi ? 'कुल मत' : 'Votes cast'}
           </span>
         </div>
 
-        <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-2xs text-center space-y-0.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            {isHindi ? 'नागरिक तर्क' : 'Arguments'}
-          </span>
-          <p className="text-base font-extrabold text-slate-900">{totalArguments}</p>
-          <span className="text-[9.5px] text-indigo-600 font-semibold">
-            {isHindi ? 'पक्ष व विपक्ष बिंदु' : 'Pro & Con Points'}
+        <div className="h-8 w-px bg-rule" />
+
+        <div>
+          <p className="text-lg font-bold text-ink leading-tight">{totalArguments}</p>
+          <span className="text-[11px] text-ink-muted">
+            {isHindi ? 'तर्क' : 'Arguments'}
           </span>
         </div>
       </div>
@@ -122,138 +121,151 @@ export const CommunityPulseTab: React.FC = () => {
       {/* SECTION 1: TOP POLARIZED DEBATES */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-            <Scale className="w-4 h-4 text-purple-600" />
-            <span>{isHindi ? 'सर्वाधिक विभाजित बहसें' : 'Top Polarized Debates'}</span>
+          <h3 className="text-xs font-semibold text-ink flex items-center gap-1.5">
+            <Scale className="w-3.5 h-3.5 text-accent" />
+            <span>{isHindi ? 'सर्वाधिक विभाजित बहसें' : 'Top polarized debates'}</span>
           </h3>
-          <span className="text-[10.5px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/60">
-            50-50 Split
+          <span className="text-[11px] font-medium text-ink-muted bg-paper px-2 py-0.5 rounded-md border border-rule">
+            {isHindi ? 'समान विभाजन' : 'Even split'}
           </span>
         </div>
-        <p className="text-[11px] text-slate-500 leading-normal">
+        <p className="text-[11px] text-ink-muted leading-normal">
           {isHindi
             ? 'विवादित नीतियां जहां नागरिक दोनों पक्षों में बराबरी से बंटे हुए हैं।'
-            : 'Contested issues where citizens are intensely divided across opposing stances.'}
+            : 'Issues where citizens are closely divided between support and opposition.'}
         </p>
 
-        <div className="space-y-2.5">
-          {polarizedDebates.map(({ post, agreePercent, disagreePercent, total }) => (
-            <div
-              key={post.id}
-              onClick={() => openDebateDrawerById(post.id)}
-              className="p-3.5 rounded-2xl bg-white border border-slate-200/90 hover:border-purple-300 shadow-2xs hover:shadow-xs transition-all cursor-pointer group space-y-2.5"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200/60">
-                  {(TOPIC_NAMES as Record<string, { en: string; hi: string }>)[post.topic]?.[language] || post.topic} &bull; {post.region}
-                </span>
-                <span className="text-[10px] font-semibold text-slate-400">
-                  {total} {isHindi ? 'मत' : 'votes'}
-                </span>
-              </div>
-
-              <h4 className="text-xs font-bold text-slate-900 leading-snug group-hover:text-purple-700 transition-colors">
-                {post.title}
-              </h4>
-
-              {/* Progress Split */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-bold">
-                  <span className="text-emerald-700 flex items-center gap-1">
-                    <ThumbsUp className="w-3 h-3" /> {isHindi ? 'सहमत' : 'Agree'} {agreePercent}%
-                  </span>
-                  <span className="text-rose-700 flex items-center gap-1">
-                    {isHindi ? 'असहमत' : 'Disagree'} {disagreePercent}% <ThumbsDown className="w-3 h-3" />
-                  </span>
-                </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                  <div style={{ width: `${agreePercent}%` }} className="h-full bg-emerald-500" />
-                  <div style={{ width: `${disagreePercent}%` }} className="h-full bg-rose-400" />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-1 text-[11px] text-purple-700 font-bold">
-                <span className="flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" /> {isHindi ? 'बहस कक्ष में जाएं' : 'Join Deliberation Floor'}
-                </span>
-                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </div>
+        <div className="space-y-2">
+          {polarizedDebates.length === 0 ? (
+            <div className="p-4 text-center bg-surface rounded-xl border border-rule text-xs text-ink-muted">
+              {isHindi ? 'अभी तक कोई मतदान रिकॉर्ड नहीं हुआ है।' : 'No voting activity recorded yet.'}
             </div>
-          ))}
+          ) : (
+            polarizedDebates.map(({ post, agreePercent, disagreePercent, total }) => (
+              <div
+                key={post.id}
+                onClick={() => openDebateDrawerById(post.id)}
+                className="p-3.5 rounded-xl bg-surface border border-rule hover:border-accent transition-colors cursor-pointer space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-paper text-ink border border-rule">
+                    {(TOPIC_NAMES as Record<string, { en: string; hi: string }>)[post.topic]?.[language] || post.topic} &bull; {post.region}
+                  </span>
+                  <span className="text-[10px] text-ink-muted">
+                    {total} {isHindi ? 'मत' : 'votes'}
+                  </span>
+                </div>
+
+                <h4 className="text-xs font-semibold text-ink leading-snug font-serif">
+                  {post.title}
+                </h4>
+
+                {/* Stance Bar */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-medium">
+                    <span className="text-support-strong">
+                      {isHindi ? 'समर्थन' : 'Support'} {agreePercent}%
+                    </span>
+                    <span className="text-oppose-strong">
+                      {isHindi ? 'विरोध' : 'Oppose'} {disagreePercent}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-paper rounded-full overflow-hidden flex">
+                    <div style={{ width: `${agreePercent}%` }} className="h-full bg-support" />
+                    <div style={{ width: `${disagreePercent}%` }} className="h-full bg-oppose" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[11px] text-accent font-medium">
+                  <span>{isHindi ? 'बहस देखें' : 'View discussion'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
       {/* SECTION 2: HIGHEST CONSENSUS TOPICS */}
-      <div className="space-y-2.5 pt-2">
+      <div className="space-y-2.5 pt-1">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-            <Award className="w-4 h-4 text-emerald-600" />
-            <span>{isHindi ? 'सर्वोच्च आम सहमति वाले विषय' : 'Highest Consensus Topics'}</span>
+          <h3 className="text-xs font-semibold text-ink flex items-center gap-1.5">
+            <Award className="w-3.5 h-3.5 text-support-strong" />
+            <span>{isHindi ? 'सर्वोच्च सहमति वाले विषय' : 'Highest consensus topics'}</span>
           </h3>
-          <span className="text-[10.5px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-            &gt;75% {isHindi ? 'सहमति' : 'Agreement'}
+          <span className="text-[11px] font-medium text-support-strong bg-support-soft px-2 py-0.5 rounded-md border border-rule">
+            &gt;65% {isHindi ? 'सहमति' : 'Consensus'}
           </span>
         </div>
-        <p className="text-[11px] text-slate-500 leading-normal">
+        <p className="text-[11px] text-ink-muted leading-normal">
           {isHindi
-            ? 'प्रस्ताव जहां नागरिकों का भारी बहुमत साझा सहमति और एकता प्रदर्शित करता है।'
-            : 'Propositions where an overwhelming majority of citizens share collective unity.'}
+            ? 'प्रस्ताव जहां नागरिकों का भारी बहुमत साझा सहमति प्रदर्शित करता है।'
+            : 'Propositions where an overwhelming majority of citizens share a collective stance.'}
         </p>
 
-        <div className="space-y-2.5">
-          {highestConsensusDebates.map(({ post, agreePercent, disagreePercent, total }) => {
-            const isMajorityAgree = agreePercent >= 50;
-            const consensusRate = isMajorityAgree ? agreePercent : disagreePercent;
-            const stanceLabel = isMajorityAgree ? (isHindi ? 'पक्ष में' : 'In Favor') : (isHindi ? 'विरोध में' : 'Opposed');
+        <div className="space-y-2">
+          {highestConsensusDebates.length === 0 ? (
+            <div className="p-4 text-center bg-surface rounded-xl border border-rule text-xs text-ink-muted">
+              {isHindi ? 'अभी तक कोई सहमति रुझान उपलब्ध नहीं है।' : 'No consensus trends recorded yet.'}
+            </div>
+          ) : (
+            highestConsensusDebates.map(({ post, agreePercent, disagreePercent, total }) => {
+              const isMajorityAgree = agreePercent >= 50;
+              const consensusRate = isMajorityAgree ? agreePercent : disagreePercent;
+              const stanceLabel = isMajorityAgree
+                ? (isHindi ? 'समर्थन' : 'Support')
+                : (isHindi ? 'विरोध' : 'Oppose');
 
-            return (
-              <div
-                key={post.id}
-                onClick={() => openDebateDrawerById(post.id)}
-                className="p-3.5 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 shadow-2xs hover:shadow-xs transition-all cursor-pointer group space-y-2.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                    {consensusRate}% {stanceLabel}
-                  </span>
-                  <span className="text-[10px] font-semibold text-slate-400">
-                    {post.region}
-                  </span>
+              return (
+                <div
+                  key={post.id}
+                  onClick={() => openDebateDrawerById(post.id)}
+                  className="p-3.5 rounded-xl bg-surface border border-rule hover:border-accent transition-colors cursor-pointer space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-support-soft text-support-strong border border-rule">
+                      {consensusRate}% {stanceLabel}
+                    </span>
+                    <span className="text-[10px] text-ink-muted">
+                      {post.region} &bull; {total} {isHindi ? 'मत' : 'votes'}
+                    </span>
+                  </div>
+
+                  <h4 className="text-xs font-semibold text-ink leading-snug font-serif">
+                    {post.title}
+                  </h4>
+
+                  <div className="h-2 w-full bg-paper rounded-full overflow-hidden flex">
+                    <div style={{ width: `${agreePercent}%` }} className="h-full bg-support" />
+                    <div style={{ width: `${disagreePercent}%` }} className="h-full bg-oppose" />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-accent font-medium">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-accent" />
+                      {isHindi ? 'तर्क देखें' : 'View arguments'}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
                 </div>
-
-                <h4 className="text-xs font-bold text-slate-900 leading-snug group-hover:text-emerald-700 transition-colors">
-                  {post.title}
-                </h4>
-
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                  <div style={{ width: `${agreePercent}%` }} className="h-full bg-emerald-500" />
-                  <div style={{ width: `${disagreePercent}%` }} className="h-full bg-rose-400" />
-                </div>
-
-                <div className="flex items-center justify-between pt-1 text-[11px] text-emerald-700 font-bold">
-                  <span className="flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-600" /> {isHindi ? 'सहमति तर्क देखें' : 'View Consensus Arguments'}
-                  </span>
-                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
       {/* SECTION 3: TOPIC ACTIVITY BREAKDOWN */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
+      <div className="p-4 rounded-xl bg-surface border border-rule space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-            <BarChart3 className="w-4 h-4 text-blue-600" />
-            <span>{isHindi ? 'विषयवार सक्रियता विवरण' : 'Topic Activity Breakdown'}</span>
+          <h3 className="text-xs font-semibold text-ink flex items-center gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5 text-accent" />
+            <span>{isHindi ? 'विषयवार सक्रियता' : 'Topic activity breakdown'}</span>
           </h3>
-          <span className="text-[11px] font-semibold text-slate-400">{isHindi ? 'नीतिगत वितरण' : 'Policy Distribution'}</span>
+          <span className="text-[11px] text-ink-muted">{isHindi ? 'वितरण' : 'Distribution'}</span>
         </div>
 
         {/* Visual Stacked Bar */}
-        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+        <div className="h-2.5 w-full bg-paper rounded-full overflow-hidden flex">
           {categoriesList.map((cat) => {
             const count = topicCounts[cat] || 0;
             const pct = Math.round((count / totalCategorized) * 100);
@@ -261,7 +273,7 @@ export const CommunityPulseTab: React.FC = () => {
               <div
                 key={cat}
                 style={{ width: `${pct}%` }}
-                className={`h-full ${topicColors[cat]?.bar || 'bg-slate-400'}`}
+                className={`h-full ${topicColors[cat]?.bar || 'bg-neutral'}`}
                 title={`${cat}: ${count} (${pct}%)`}
               />
             );
@@ -274,22 +286,22 @@ export const CommunityPulseTab: React.FC = () => {
             const count = topicCounts[cat] || 0;
             const pct = Math.round((count / totalCategorized) * 100);
             const style = topicColors[cat] || {
-              bar: 'bg-slate-400',
-              text: 'text-slate-700',
-              bg: 'bg-slate-50',
+              bar: 'bg-neutral',
+              text: 'text-ink',
+              bg: 'bg-paper',
             };
             const catLabel = TOPIC_NAMES[cat]?.[language] || cat;
 
             return (
               <div
                 key={cat}
-                className={`p-2.5 rounded-xl border border-slate-100 ${style.bg} flex items-center justify-between`}
+                className={`p-2.5 rounded-lg border border-rule ${style.bg} flex items-center justify-between`}
               >
                 <div>
-                  <span className={`text-[11px] font-bold ${style.text} block`}>{catLabel}</span>
-                  <span className="text-[10px] text-slate-500">{count} {isHindi ? 'मुद्दे' : 'Debates'}</span>
+                  <span className={`text-[11px] font-medium ${style.text} block`}>{catLabel}</span>
+                  <span className="text-[10px] text-ink-muted">{count} {isHindi ? 'बहसें' : 'debates'}</span>
                 </div>
-                <span className="text-xs font-extrabold text-slate-800">{pct}%</span>
+                <span className="text-xs font-semibold text-ink">{pct}%</span>
               </div>
             );
           })}

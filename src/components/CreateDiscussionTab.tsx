@@ -4,7 +4,6 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Region, Topic, VotingMode } from '@/lib/types';
 import {
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   Check,
@@ -33,7 +32,6 @@ import { uploadMediaFile } from '@/lib/storage';
 import {
   VOTING_MODES,
   WORLD_COUNTRIES,
-  CountryInfo,
 } from '@/constants/regions';
 import { CascadingRegionModal } from './CascadingRegionModal';
 
@@ -43,8 +41,7 @@ const TOPICS: {
   labelHi: string;
   descEn: string;
   descHi: string;
-  icon: any;
-  color: string;
+  icon: React.ComponentType<{ className?: string }>;
 }[] = [
   {
     id: 'Economy',
@@ -53,7 +50,6 @@ const TOPICS: {
     descEn: 'Taxation, digital currency, fiscal policies, and subsidies.',
     descHi: 'कराधान, डिजिटल मुद्रा, वित्तीय नीतियां और प्रत्यक्ष सब्सिडी।',
     icon: TrendingUp,
-    color: 'bg-emerald-50 text-emerald-900 border-emerald-200',
   },
   {
     id: 'Education',
@@ -62,7 +58,6 @@ const TOPICS: {
     descEn: 'Curricula reform, board exams, skills training, and schools.',
     descHi: 'पाठ्यक्रम सुधार, बोर्ड परीक्षाएं, कौशल प्रशिक्षण और स्कूल।',
     icon: GraduationCap,
-    color: 'bg-blue-50 text-blue-900 border-blue-200',
   },
   {
     id: 'Civic Life',
@@ -71,7 +66,6 @@ const TOPICS: {
     descEn: 'Transit, clean air, road infrastructure, and public spaces.',
     descHi: 'परिवहन, स्वच्छ हवा, सड़क संरचना और नागरिक सुविधाएं।',
     icon: Building2,
-    color: 'bg-amber-50 text-amber-900 border-amber-200',
   },
   {
     id: 'Technology',
@@ -80,7 +74,6 @@ const TOPICS: {
     descEn: 'AI regulation, data privacy, open mobility, and digital rights.',
     descHi: 'एआई विनियमन, डेटा गोपनीयता, खुली गतिशीलता और डिजिटल अधिकार।',
     icon: Cpu,
-    color: 'bg-indigo-50 text-indigo-900 border-indigo-200',
   },
 ];
 
@@ -159,21 +152,31 @@ export const CreateDiscussionTab: React.FC = () => {
     } else {
       setValidationError(
         isHindi
-          ? 'कृपया मान्य छवि (PNG, JPG, WebP), वीडियो (MP4, WebM) या PDF दस्तावेज़ चुनें।'
-          : 'Please select a valid image (PNG, JPG, WebP), video (MP4, WebM), or PDF document.'
+          ? 'अमान्य फ़ाइल प्रकार। केवल चित्र, वीडियो या PDF दस्तावेज़ अपलोड करें।'
+          : 'Invalid file type. Please upload images, videos, or PDF documents.'
       );
       return;
     }
 
-    setValidationError(null);
+    if (file.size > 25 * 1024 * 1024) {
+      setValidationError(
+        isHindi
+          ? 'फ़ाइल का आकार 25MB से कम होना चाहिए।'
+          : 'File size must be under 25MB.'
+      );
+      return;
+    }
+
     setSelectedFile(file);
     setFileMediaType(type);
+    setValidationError(null);
+
     const objectUrl = URL.createObjectURL(file);
     setFilePreviewUrl(objectUrl);
   };
 
   const handleRemoveFile = () => {
-    if (filePreviewUrl && filePreviewUrl.startsWith('blob:')) {
+    if (filePreviewUrl) {
       URL.revokeObjectURL(filePreviewUrl);
     }
     setSelectedFile(null);
@@ -190,43 +193,57 @@ export const CreateDiscussionTab: React.FC = () => {
   };
 
   const handleNextFromStep2 = () => {
-    setValidationError(null);
     if (!title.trim()) {
       setValidationError(
         isHindi
-          ? 'कृपया एक स्पष्ट नीति प्रश्न या प्रस्ताव लिखें।'
-          : 'Please enter a clear proposition question or discussion statement.'
+          ? 'कृपया अपने प्रस्ताव का शीर्षक या नीतिगत प्रश्न लिखें।'
+          : 'Please enter a proposition title or question.'
       );
       return;
     }
-    stopListening();
+    if (title.trim().length < 10) {
+      setValidationError(
+        isHindi
+          ? 'शीर्षक कम से कम 10 अक्षरों का होना चाहिए।'
+          : 'Proposition title must be at least 10 characters.'
+      );
+      return;
+    }
+    setValidationError(null);
     setStep(3);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setValidationError(null);
-    stopListening();
-
     if (!user) {
       openAuthModal(
-        isHindi ? 'प्रस्ताव प्रकाशित करने के लिए प्रवेश करें।' : 'Sign in to publish a civic proposition.'
+        isHindi
+          ? 'बहस प्रकाशित करने और नागरिक कर्म अर्जित करने के लिए प्रवेश करें।'
+          : 'Sign in to publish your debate and earn civic karma.'
       );
       return;
     }
 
     if (!title.trim()) {
-      setValidationError(isHindi ? 'कृपया एक प्रस्ताव प्रश्न लिखें।' : 'Please enter a proposition question.');
+      setValidationError(
+        isHindi ? 'कृपया शीर्षक दर्ज करें।' : 'Please enter a proposition title.'
+      );
+      setStep(2);
       return;
     }
+
     if (!description.trim()) {
       setValidationError(
-        isHindi ? 'कृपया पृष्ठभूमि और संदर्भ लिखें।' : 'Please add contextual background or perspective.'
+        isHindi
+          ? 'कृपया नागरिकों के विचारार्थ कुछ पृष्ठभूमि या संदर्भ अवश्य लिखें।'
+          : 'Please provide some background context for fellow citizens.'
       );
       return;
     }
 
     setIsSubmitting(true);
+    setValidationError(null);
+
     try {
       let finalMediaUrl = mediaUrl.trim() || undefined;
       let finalMediaType: 'image' | 'video' | 'document' | undefined = undefined;
@@ -289,46 +306,44 @@ export const CreateDiscussionTab: React.FC = () => {
       {!user && (
         <div
           onClick={() => openAuthModal()}
-          className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between cursor-pointer shadow-2xs hover:bg-amber-100 transition-colors"
+          className="p-3.5 rounded-xl bg-paper border border-rule text-xs text-ink flex items-center justify-between cursor-pointer hover:bg-rule/30 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-amber-700 shrink-0" />
-            <p className="font-semibold">
+            <Lock className="w-4 h-4 text-accent shrink-0" />
+            <p className="font-normal text-ink-muted">
               {isHindi
-                ? 'आप अतिथि के रूप में देख रहे हैं। प्रस्ताव रखने के लिए प्रवेश करें।'
-                : 'You are browsing as Guest. Sign in to publish discussions and earn Karma.'}
+                ? 'आप अतिथि के रूप में देख रहे हैं। बहस शुरू करने के लिए प्रवेश करें।'
+                : 'You are browsing as guest. Sign in to publish debates and earn karma.'}
             </p>
           </div>
-          <span className="text-[11px] font-bold text-amber-800 underline shrink-0">{t.signIn}</span>
+          <span className="text-[11px] font-semibold text-accent underline shrink-0">{t.signIn}</span>
         </div>
       )}
 
-      {/* Wizard Header & Progress */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+      {/* Stepper Header & Thin Progress Bar */}
+      <div className="p-4 rounded-xl bg-surface border border-rule space-y-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-              {step}/3
-            </div>
-            <div>
-              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                {t.newProp}
-              </h2>
-              <p className="text-[11px] text-slate-500 font-medium">
-                {step === 1
-                  ? isHindi ? 'डोमेन एवं वोटिंग मोड' : 'Domain & Voting Mode'
-                  : step === 2
-                    ? t.propositionQuestion
-                    : t.contextPerspective}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-sm font-semibold text-ink font-serif">
+              {isHindi ? 'नई बहस' : 'New debate'}
+            </h2>
+            <p className="text-[11px] text-ink-muted">
+              {step === 1
+                ? isHindi ? 'विषय एवं मतदान का प्रकार' : 'Topic & voting mode'
+                : step === 2
+                  ? isHindi ? 'नीतिगत प्रश्न एवं क्षेत्र' : 'Question & region'
+                  : isHindi ? 'पृष्ठभूमि एवं पूर्वावलोकन' : 'Background & preview'}
+            </p>
           </div>
+          <span className="text-xs font-semibold text-accent">
+            {step} / 3
+          </span>
         </div>
 
-        {/* Step Indicator Progress Bar */}
-        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+        {/* Step Indicator - Thin 1px/2px Progress Bar */}
+        <div className="h-1 w-full bg-rule rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-600 transition-all duration-300"
+            className="h-full bg-accent transition-all duration-300"
             style={{ width: `${(step / 3) * 100}%` }}
           />
         </div>
@@ -336,7 +351,7 @@ export const CreateDiscussionTab: React.FC = () => {
 
       {/* Validation Error Banner */}
       {validationError && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium animate-fade-in">
+        <div className="p-3 rounded-xl bg-oppose-soft border border-oppose-strong/30 text-xs text-oppose-strong font-medium animate-fade-in">
           {validationError}
         </div>
       )}
@@ -347,13 +362,13 @@ export const CreateDiscussionTab: React.FC = () => {
           {/* Section A: Topic Category */}
           <div className="space-y-2">
             <div className="space-y-0.5">
-              <h3 className="text-sm font-extrabold text-slate-900">
-                {t.topicCategory}
+              <h3 className="text-xs font-semibold text-ink">
+                {isHindi ? 'विषय चुनें' : 'Select topic'}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-ink-muted">
                 {isHindi
                   ? 'वह नीतिगत क्षेत्र चुनें जहां यह बहस संबंधित है।'
-                  : 'Select the domain where this policy debate belongs for targeted civic engagement.'}
+                  : 'Select the domain where this policy debate belongs.'}
               </p>
             </div>
 
@@ -368,25 +383,25 @@ export const CreateDiscussionTab: React.FC = () => {
                   <div
                     key={tItem.id}
                     onClick={() => setTopic(tItem.id)}
-                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                    className={`p-3 rounded-xl border cursor-pointer transition-colors flex items-start gap-3 min-h-[44px] ${
                       isSelected
-                        ? 'border-blue-600 bg-blue-50/50 shadow-xs'
-                        : 'border-slate-200/90 bg-white hover:border-slate-300'
+                        ? 'border-accent bg-accent-soft/40'
+                        : 'border-rule bg-surface hover:bg-paper'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${tItem.color}`}>
-                      <Icon className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-paper text-ink border border-rule">
+                      <Icon className="w-4 h-4 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-slate-900">{titleText}</h4>
+                        <h4 className="text-xs font-semibold text-ink">{titleText}</h4>
                         {isSelected && (
-                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                          <span className="w-4 h-4 rounded-full bg-accent text-surface flex items-center justify-center text-[10px]">
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                      <p className="text-[11px] text-ink-muted mt-0.5 leading-relaxed">
                         {descText}
                       </p>
                     </div>
@@ -397,19 +412,19 @@ export const CreateDiscussionTab: React.FC = () => {
           </div>
 
           {/* Section B: Voting Mode Selection */}
-          <div className="space-y-2 pt-1 border-t border-slate-200/80">
+          <div className="space-y-2 pt-2 border-t border-rule">
             <div className="space-y-0.5">
-              <h3 className="text-sm font-extrabold text-slate-900">
-                {isHindi ? 'जनमत वोटिंग मोड चुनें' : 'Choose Consensus Voting Mode'}
+              <h3 className="text-xs font-semibold text-ink">
+                {isHindi ? 'मतदान का प्रकार' : 'Voting mode'}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-ink-muted">
                 {isHindi
-                  ? 'नागरिक इस प्रस्ताव पर किस प्रकार मतदान करेंगे।'
+                  ? 'नागरिक इस बहस पर किस प्रकार मतदान करेंगे।'
                   : 'Decide how citizens participate: clear 2-way verdict or 5-tier spectrum meter.'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5">
+            <div className="grid grid-cols-1 gap-2">
               {VOTING_MODES.map((mode) => {
                 const isSelected = votingMode === mode.id;
                 const titleText = isHindi ? mode.titleHi : mode.titleEn;
@@ -420,17 +435,17 @@ export const CreateDiscussionTab: React.FC = () => {
                   <div
                     key={mode.id}
                     onClick={() => setVotingMode(mode.id)}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-colors flex items-start gap-3 min-h-[44px] ${
                       isSelected
-                        ? 'border-blue-600 bg-blue-50/50 shadow-xs'
-                        : 'border-slate-200/90 bg-white hover:border-slate-300'
+                        ? 'border-accent bg-accent-soft/40'
+                        : 'border-rule bg-surface hover:bg-paper'
                     }`}
                   >
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
                         isSelected
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                          ? 'bg-accent text-surface border-accent'
+                          : 'bg-paper text-ink-muted border-rule'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -439,19 +454,19 @@ export const CreateDiscussionTab: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-900">{titleText}</h4>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          <h4 className="text-xs font-semibold text-ink">{titleText}</h4>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-paper text-ink border border-rule">
                             {mode.badge}
                           </span>
                         </div>
                         {isSelected && (
-                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                          <span className="w-4 h-4 rounded-full bg-accent text-surface flex items-center justify-center text-[10px]">
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </span>
                         )}
                       </div>
 
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-ink-muted mt-1 leading-relaxed">
                         {descText}
                       </p>
                     </div>
@@ -463,9 +478,9 @@ export const CreateDiscussionTab: React.FC = () => {
 
           <button
             onClick={handleNextFromStep1}
-            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:bg-blue-700 active:scale-98 transition-all flex items-center justify-center gap-1.5"
+            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-accent text-surface font-semibold text-xs hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
           >
-            <span>{t.continueToProp}</span>
+            <span>{isHindi ? 'आगे बढ़ें' : 'Continue'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -475,21 +490,21 @@ export const CreateDiscussionTab: React.FC = () => {
       {step === 2 && (
         <div className="space-y-3.5">
           <div className="space-y-1">
-            <h3 className="text-sm font-extrabold text-slate-900">
-              {t.propositionQuestion}
+            <h3 className="text-xs font-semibold text-ink">
+              {isHindi ? 'नीतिगत प्रश्न एवं क्षेत्र' : 'Proposition question & region'}
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-[11px] text-ink-muted">
               {isHindi
                 ? 'अपना प्रश्न स्पष्ट रूप से लिखें ताकि नागरिक अपना स्पष्ट रुख दर्ज कर सकें।'
                 : 'Frame your question clearly so citizens can record their stance with conviction.'}
             </p>
           </div>
 
-          {/* Cascading Country, State & Constituency Geographic Selector */}
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 space-y-3">
+          {/* Geographic Selector */}
+          <div className="p-3.5 rounded-xl bg-surface border border-rule space-y-3">
             <div className="flex items-center justify-between">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                {t.targetRegion}
+              <label className="block text-[11px] font-medium text-ink">
+                {isHindi ? 'लक्षित क्षेत्र' : 'Target region'}
               </label>
               <button
                 type="button"
@@ -497,24 +512,21 @@ export const CreateDiscussionTab: React.FC = () => {
                   setModalStartView('country');
                   setIsRegionModalOpen(true);
                 }}
-                className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
+                className="text-[11px] font-semibold text-accent hover:underline cursor-pointer"
               >
-                {isHindi ? 'देश या क्षेत्र बदलें' : 'Change Jurisdiction'}
+                {isHindi ? 'बदलें' : 'Change'}
               </button>
             </div>
 
-            {/* Level 1: Country Picker Button */}
+            {/* Country Picker Button */}
             <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-slate-500">
-                {isHindi ? '1. देश (Country)' : '1. Country'}
-              </span>
               <button
                 type="button"
                 onClick={() => {
                   setModalStartView('country');
                   setIsRegionModalOpen(true);
                 }}
-                className="w-full py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all flex items-center justify-between text-left text-xs font-bold text-slate-900"
+                className="w-full py-2 px-3 rounded-xl bg-paper border border-rule hover:bg-rule/40 transition-colors flex items-center justify-between text-left text-xs font-medium text-ink min-h-[44px] cursor-pointer"
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className="text-base leading-none">{currentCountryConfig?.flag || '🌐'}</span>
@@ -522,7 +534,7 @@ export const CreateDiscussionTab: React.FC = () => {
                     {isHindi ? currentCountryConfig?.nameHi : currentCountryConfig?.nameEn}
                   </span>
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <ChevronDown className="w-3.5 h-3.5 text-ink-muted shrink-0" />
               </button>
             </div>
 
@@ -531,55 +543,49 @@ export const CreateDiscussionTab: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                 {/* State / UT Selector */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-semibold text-slate-500">
-                    {isHindi ? '2. राज्य / UT' : '2. State / UT'}
-                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       setModalStartView('state');
                       setIsRegionModalOpen(true);
                     }}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all flex items-center justify-between text-left text-xs font-bold text-slate-900"
+                    className="w-full py-2 px-3 rounded-xl bg-paper border border-rule hover:bg-rule/40 transition-colors flex items-center justify-between text-left text-xs font-medium text-ink min-h-[44px] cursor-pointer"
                   >
                     <div className="flex items-center gap-1.5 truncate">
-                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <MapPin className="w-3.5 h-3.5 text-accent shrink-0" />
                       <span className="truncate">{REGION_NAMES[region]?.[language] || region}</span>
                     </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <ChevronDown className="w-3.5 h-3.5 text-ink-muted shrink-0" />
                   </button>
                 </div>
 
                 {/* Lok Sabha Constituency Selector */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-semibold text-slate-500">
-                    {isHindi ? '3. लोकसभा सीट' : '3. Lok Sabha Seat'}
-                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       setModalStartView('constituency');
                       setIsRegionModalOpen(true);
                     }}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all flex items-center justify-between text-left text-xs font-bold text-slate-900"
+                    className="w-full py-2 px-3 rounded-xl bg-paper border border-rule hover:bg-rule/40 transition-colors flex items-center justify-between text-left text-xs font-medium text-ink min-h-[44px] cursor-pointer"
                   >
                     <div className="flex items-center gap-1.5 truncate">
-                      <Building2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <Building2 className="w-3.5 h-3.5 text-accent shrink-0" />
                       <span className="truncate">
                         {constituency === 'All Constituencies'
                           ? isHindi
                             ? 'सभी सीटें (राज्यव्यापी)'
-                            : 'All Seats (Statewide)'
+                            : 'All seats (Statewide)'
                           : constituency}
                       </span>
                     </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <ChevronDown className="w-3.5 h-3.5 text-ink-muted shrink-0" />
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
-                <Globe2 className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="p-2.5 rounded-xl bg-paper border border-rule text-xs text-ink-muted flex items-center gap-2">
+                <Globe2 className="w-4 h-4 text-accent shrink-0" />
                 <span>
                   {isHindi
                     ? `${currentCountryConfig?.nameHi} में देशव्यापी नागरिक संवाद लागू होगा।`
@@ -590,26 +596,26 @@ export const CreateDiscussionTab: React.FC = () => {
           </div>
 
           {/* Title Input with Voice-to-Text Microphone Button */}
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 space-y-2">
+          <div className="p-3.5 rounded-xl bg-surface border border-rule space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                {isHindi ? 'प्रस्ताव प्रश्न / शीर्षक' : 'Proposition Title / Question'}
+              <label className="block text-[11px] font-medium text-ink">
+                {isHindi ? 'प्रस्ताव प्रश्न / शीर्षक' : 'Proposition title / question'}
               </label>
 
               {/* Microphone Button */}
               <button
                 type="button"
                 onClick={handleStartTitleMic}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer min-h-[32px] ${
                   isListening && micTarget === 'title'
-                    ? 'bg-rose-600 text-white pulse-listening shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-oppose-strong text-surface'
+                    : 'bg-paper text-ink hover:bg-rule/40 border border-rule'
                 }`}
-                title={isHindi ? 'बोलकर लिखें' : 'Voice Dictation'}
+                title={isHindi ? 'बोलकर लिखें' : 'Voice dictation'}
               >
-                <Mic className={`w-3.5 h-3.5 ${isListening && micTarget === 'title' ? 'animate-pulse' : ''}`} />
+                <Mic className="w-3.5 h-3.5" />
                 <span>
-                  {isListening && micTarget === 'title' ? t.micListening : isHindi ? 'बोलें (Mic)' : 'Dictate (Mic)'}
+                  {isListening && micTarget === 'title' ? t.micListening : isHindi ? 'बोलें' : 'Dictate'}
                 </span>
               </button>
             </div>
@@ -619,26 +625,26 @@ export const CreateDiscussionTab: React.FC = () => {
               placeholder={
                 isHindi
                   ? 'उदा. क्या भारी यातायात वाले शहरी गलियारों में पीक-ऑवर भीड़भाड़ शुल्क लगाया जाना चाहिए?'
-                  : 'e.g. Should variable congestion pricing be introduced on urban arterial tech corridors?'
+                  : 'e.g. Should variable congestion pricing be introduced on urban arterial corridors?'
               }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold text-slate-900"
+              className="w-full p-3 text-xs rounded-xl bg-paper border border-rule focus:bg-surface focus:outline-none focus:border-accent text-ink font-normal min-h-[44px]"
             />
 
             {/* Listening Indicator */}
             {isListening && micTarget === 'title' && (
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between text-xs text-rose-700 animate-pulse">
+              <div className="p-2.5 rounded-xl bg-oppose-soft border border-oppose-strong/30 flex items-center justify-between text-xs text-oppose-strong">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
-                  <span className="font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-oppose-strong animate-ping" />
+                  <span className="font-medium">
                     {isHindi ? 'सुन रहे हैं... (रोकने के लिए दोबारा टैप करें)' : 'Listening... Tap again to stop'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleStartTitleMic}
-                  className="text-xs bg-rose-600 text-white px-2.5 py-1 rounded-md font-bold hover:bg-rose-700 transition-colors"
+                  className="text-xs bg-oppose-strong text-surface px-2.5 py-1 rounded-md font-medium cursor-pointer"
                 >
                   {isHindi ? 'रोकें' : 'Stop'}
                 </button>
@@ -650,16 +656,16 @@ export const CreateDiscussionTab: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="py-2.5 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors flex items-center gap-1"
+              className="py-2.5 px-4 rounded-xl border border-rule bg-surface text-ink font-medium text-xs hover:bg-paper transition-colors flex items-center gap-1 cursor-pointer min-h-[44px]"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>{t.back}</span>
+              <span>{isHindi ? 'पीछे' : 'Back'}</span>
             </button>
             <button
               onClick={handleNextFromStep2}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:bg-blue-700 active:scale-98 transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-accent text-surface font-semibold text-xs hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
             >
-              <span>{t.perspectivePreview}</span>
+              <span>{isHindi ? 'पूर्वावलोकन देखें' : 'Continue to preview'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -670,36 +676,36 @@ export const CreateDiscussionTab: React.FC = () => {
       {step === 3 && (
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="space-y-1">
-            <h3 className="text-sm font-extrabold text-slate-900">
-              {t.contextPerspective}
+            <h3 className="text-xs font-semibold text-ink">
+              {isHindi ? 'पृष्ठभूमि व संदर्भ' : 'Context & perspective'}
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-[11px] text-ink-muted">
               {isHindi
                 ? 'तथ्यात्मक पृष्ठभूमि, साक्ष्य और संदर्भ जोड़ें ताकि नागरिक दोनों पक्षों पर विचार कर सकें।'
-                : 'Provide factual background, evidence, and nuances to help neighbors deliberate.'}
+                : 'Provide factual background, evidence, and nuances to help citizens deliberate.'}
             </p>
           </div>
 
           {/* Description Textarea with Mic Button */}
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 space-y-2">
+          <div className="p-3.5 rounded-xl bg-surface border border-rule space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                {isHindi ? 'विस्तृत पृष्ठभूमि व संदर्भ' : 'Background Context / Perspective'}
+              <label className="block text-[11px] font-medium text-ink">
+                {isHindi ? 'विस्तृत पृष्ठभूमि व संदर्भ' : 'Background context / perspective'}
               </label>
 
               <button
                 type="button"
                 onClick={handleStartDescMic}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer min-h-[32px] ${
                   isListening && micTarget === 'description'
-                    ? 'bg-rose-600 text-white pulse-listening shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-oppose-strong text-surface'
+                    : 'bg-paper text-ink hover:bg-rule/40 border border-rule'
                 }`}
-                title={isHindi ? 'बोलकर लिखें' : 'Voice Dictation'}
+                title={isHindi ? 'बोलकर लिखें' : 'Voice dictation'}
               >
-                <Mic className={`w-3.5 h-3.5 ${isListening && micTarget === 'description' ? 'animate-pulse' : ''}`} />
+                <Mic className="w-3.5 h-3.5" />
                 <span>
-                  {isListening && micTarget === 'description' ? t.micListening : isHindi ? 'बोलें (Mic)' : 'Dictate (Mic)'}
+                  {isListening && micTarget === 'description' ? t.micListening : isHindi ? 'बोलें' : 'Dictate'}
                 </span>
               </button>
             </div>
@@ -713,21 +719,21 @@ export const CreateDiscussionTab: React.FC = () => {
               }
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-3 text-xs rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 leading-relaxed text-slate-800"
+              className="w-full p-3 text-xs rounded-xl bg-paper border border-rule focus:bg-surface focus:outline-none focus:border-accent leading-relaxed text-ink"
             />
 
             {isListening && micTarget === 'description' && (
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between text-xs text-rose-700 animate-pulse">
+              <div className="p-2.5 rounded-xl bg-oppose-soft border border-oppose-strong/30 flex items-center justify-between text-xs text-oppose-strong">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
-                  <span className="font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-oppose-strong animate-ping" />
+                  <span className="font-medium">
                     {isHindi ? 'सुन रहे हैं... (रोकने के लिए दोबारा टैप करें)' : 'Listening... Tap again to stop'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleStartDescMic}
-                  className="text-xs bg-rose-600 text-white px-2.5 py-1 rounded-md font-bold hover:bg-rose-700 transition-colors"
+                  className="text-xs bg-oppose-strong text-surface px-2.5 py-1 rounded-md font-medium cursor-pointer"
                 >
                   {isHindi ? 'रोकें' : 'Stop'}
                 </button>
@@ -735,16 +741,16 @@ export const CreateDiscussionTab: React.FC = () => {
             )}
           </div>
 
-          {/* MULTI-MEDIA ATTACHMENTS (Photos, Videos, Documents) */}
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 space-y-3">
+          {/* Multi-Media Attachments */}
+          <div className="p-3.5 rounded-xl bg-surface border border-rule space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <UploadCloud className="w-4 h-4 text-blue-600" />
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                  {isHindi ? 'प्रमाण संलग्न करें (फ़ोटो, वीडियो, PDF)' : 'Attach Supporting Evidence'}
+                <UploadCloud className="w-4 h-4 text-accent" />
+                <h4 className="text-xs font-semibold text-ink">
+                  {isHindi ? 'प्रमाण संलग्न करें' : 'Attach supporting evidence'}
                 </h4>
               </div>
-              <span className="text-[10px] font-semibold text-slate-400">
+              <span className="text-[10px] text-ink-muted">
                 {isHindi ? 'वैकल्पिक' : 'Optional'}
               </span>
             </div>
@@ -760,29 +766,29 @@ export const CreateDiscussionTab: React.FC = () => {
             {!selectedFile ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 rounded-2xl p-4 text-center cursor-pointer transition-all space-y-1.5 group"
+                className="border-2 border-dashed border-rule hover:border-accent bg-paper rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5 min-h-[44px]"
               >
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto group-hover:scale-105 transition-transform">
-                  <UploadCloud className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center mx-auto">
+                  <UploadCloud className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-bold text-slate-800">
+                <div className="text-xs font-medium text-ink">
                   {isHindi ? 'फ़ाइल चुनने के लिए टैप करें' : 'Tap to upload evidence file'}
                 </div>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[10px] text-ink-muted">
                   {isHindi
                     ? 'छवि (PNG, JPG), वीडियो (MP4), या रिपोर्ट दस्तावेज़ (PDF)'
                     : 'Photos (PNG, JPG, WebP), Videos (MP4, WebM) or Documents (PDF)'}
                 </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-slate-200 p-3 bg-slate-50/90 space-y-2">
+              <div className="rounded-xl border border-rule p-3 bg-paper space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                    {fileMediaType === 'image' && <ImageIcon className="w-4 h-4 text-emerald-600" />}
-                    {fileMediaType === 'video' && <VideoIcon className="w-4 h-4 text-purple-600" />}
-                    {fileMediaType === 'document' && <FileText className="w-4 h-4 text-rose-600" />}
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-ink">
+                    {fileMediaType === 'image' && <ImageIcon className="w-4 h-4 text-support" />}
+                    {fileMediaType === 'video' && <VideoIcon className="w-4 h-4 text-accent" />}
+                    {fileMediaType === 'document' && <FileText className="w-4 h-4 text-oppose-strong" />}
                     <span className="truncate max-w-[190px]">{selectedFile.name}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">
+                    <span className="text-[10px] text-ink-muted font-normal">
                       ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
                     </span>
                   </div>
@@ -790,7 +796,7 @@ export const CreateDiscussionTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleRemoveFile}
-                    className="p-1 rounded-lg text-rose-600 hover:bg-rose-100 transition-colors"
+                    className="p-1 rounded-lg text-oppose-strong hover:bg-oppose-soft transition-colors cursor-pointer"
                     title={isHindi ? 'हटाएं' : 'Remove attachment'}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -798,7 +804,8 @@ export const CreateDiscussionTab: React.FC = () => {
                 </div>
 
                 {fileMediaType === 'image' && filePreviewUrl && (
-                  <div className="rounded-xl overflow-hidden max-h-48 border border-slate-200 bg-black/5">
+                  <div className="rounded-lg overflow-hidden max-h-48 border border-rule bg-ink/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={filePreviewUrl}
                       alt="Evidence Preview"
@@ -808,7 +815,7 @@ export const CreateDiscussionTab: React.FC = () => {
                 )}
 
                 {fileMediaType === 'video' && filePreviewUrl && (
-                  <div className="rounded-xl overflow-hidden max-h-48 border border-slate-200 bg-black">
+                  <div className="rounded-lg overflow-hidden max-h-48 border border-rule bg-ink">
                     <video
                       src={filePreviewUrl}
                       controls
@@ -819,17 +826,17 @@ export const CreateDiscussionTab: React.FC = () => {
                 )}
 
                 {fileMediaType === 'document' && (
-                  <div className="p-3 rounded-xl bg-white border border-rose-200 flex items-center justify-between">
+                  <div className="p-3 rounded-lg bg-surface border border-rule flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-black text-xs">
+                      <div className="w-8 h-8 rounded-lg bg-oppose-soft text-oppose-strong flex items-center justify-center font-bold text-xs">
                         PDF
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-800 truncate max-w-[180px]">
+                        <p className="text-xs font-medium text-ink truncate max-w-[180px]">
                           {selectedFile.name}
                         </p>
-                        <p className="text-[10px] text-slate-500">
-                          {isHindi ? 'सत्यापित PDF साक्ष्य' : 'Verified PDF Evidence Document'}
+                        <p className="text-[10px] text-ink-muted">
+                          {isHindi ? 'सत्यापित PDF साक्ष्य' : 'Verified PDF evidence document'}
                         </p>
                       </div>
                     </div>
@@ -839,90 +846,64 @@ export const CreateDiscussionTab: React.FC = () => {
             )}
 
             {/* Optional Reference Link */}
-            <div className="pt-1 border-t border-slate-100">
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                {t.newsUrlLabel}
+            <div className="pt-1 border-t border-rule">
+              <label className="block text-[11px] font-medium text-ink mb-1">
+                {isHindi ? 'समाचार या संदर्भ लिंक (वैकल्पिक)' : 'News or reference link (optional)'}
               </label>
               <div className="relative">
-                <ExternalLink className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <ExternalLink className="absolute left-3 top-3 w-4 h-4 text-ink-muted" />
                 <input
                   type="url"
                   placeholder="https://thehindu.com/news/national/article"
                   value={sourceUrl}
                   onChange={(e) => setSourceUrl(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-paper border border-rule text-ink focus:bg-surface focus:outline-none focus:border-accent min-h-[44px]"
                 />
               </div>
             </div>
           </div>
 
-          {/* Live Card Preview Showing Selected Voting Mode */}
+          {/* Live Card Preview with Neutral 0-Vote Bar */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
-              {t.livePreview} ({votingMode === 'verdict' ? 'The Verdict' : 'The Spectrum'})
+            <span className="text-[10px] font-semibold text-ink-muted block px-1">
+              {isHindi ? 'लाइव पूर्वावलोकन' : 'Live preview'}
             </span>
-            <div className="bg-white border-2 border-dashed border-blue-200 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="bg-surface border border-rule rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-paper text-ink border border-rule">
                   {TOPIC_NAMES[topic]?.[language] || topic}
                 </span>
-                <span className="text-[10px] font-semibold text-slate-400">
-                  {isIndia ? (REGION_NAMES[region]?.[language] || region) : country} &bull; {isHindi ? 'अभी' : 'Just Now'}
+                <span className="text-[10px] text-ink-muted">
+                  {isIndia ? (REGION_NAMES[region]?.[language] || region) : country} &bull; {isHindi ? 'अभी' : 'Just now'}
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
-                <div className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center">
+              <div className="flex items-center gap-1.5 text-xs text-ink">
+                <div className="w-5 h-5 rounded-full bg-accent text-surface text-[10px] flex items-center justify-center font-bold">
                   {user ? user.name.charAt(0) : 'Y'}
                 </div>
-                <span>{user ? user.name : (isHindi ? 'आप (नागरिक)' : 'You (Citizen)')}</span>
-                <span className="text-[10px] text-slate-400 font-normal">
+                <span className="font-medium">{user ? user.name : (isHindi ? 'आप (नागरिक)' : 'You (Citizen)')}</span>
+                <span className="text-[10px] text-ink-muted">
                   @{user ? user.username : 'citizen'}
                 </span>
               </div>
 
-              <h4 className="text-xs font-bold text-slate-900 leading-snug">
+              <h4 className="text-xs font-semibold text-ink leading-snug font-serif">
                 {title || (isHindi ? 'आपका नीतिगत प्रश्न यहां दिखाई देगा...' : 'Your proposition question will appear here...')}
               </h4>
 
-              <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">
-                {description || (isHindi ? 'आपका पृष्ठभूमि विवरण और साक्ष्य यहां प्रदर्शित होगा...' : 'Your context, policy explanation, and evidence will appear here...')}
+              <p className="text-[11px] text-ink-muted leading-relaxed line-clamp-3">
+                {description || (isHindi ? 'आपका पृष्ठभूमि विवरण और संदर्भ यहां प्रदर्शित होगा...' : 'Your context, policy explanation, and evidence will appear here...')}
               </p>
 
-              {/* Mode-Specific Interactive Preview */}
-              {votingMode === 'verdict' ? (
-                <div className="space-y-2 pt-1">
-                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                    <div style={{ width: '65%' }} className="h-full bg-emerald-600" />
-                    <div style={{ width: '35%' }} className="h-full bg-rose-600" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="py-1.5 px-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center">
-                      {isHindi ? 'समर्थन (Endorse)' : 'Endorse'} • 65%
-                    </div>
-                    <div className="py-1.5 px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold text-center">
-                      {isHindi ? 'विरोध (Oppose)' : 'Oppose'} • 35%
-                    </div>
-                  </div>
+              {/* Realistic Empty Stance Bar Preview */}
+              <div className="space-y-1 pt-1">
+                <div className="h-2 w-full bg-paper rounded-full border border-rule flex items-center justify-center">
+                  <span className="text-[9px] text-ink-muted">
+                    {isHindi ? 'अभी तक कोई मत नहीं। पहले बनें।' : 'No votes yet. Be the first.'}
+                  </span>
                 </div>
-              ) : (
-                <div className="space-y-2 pt-1">
-                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                    <div style={{ width: '30%' }} className="h-full bg-emerald-700" />
-                    <div style={{ width: '25%' }} className="h-full bg-emerald-500" />
-                    <div style={{ width: '15%' }} className="h-full bg-slate-400" />
-                    <div style={{ width: '15%' }} className="h-full bg-rose-400" />
-                    <div style={{ width: '15%' }} className="h-full bg-rose-800" />
-                  </div>
-                  <div className="grid grid-cols-5 gap-1 text-[9px] font-bold text-center text-slate-600">
-                    <div className="p-1 rounded bg-emerald-50 text-emerald-800">{isHindi ? 'दृढ़ समर्थन' : 'Back'}</div>
-                    <div className="p-1 rounded bg-emerald-50 text-emerald-700">{isHindi ? 'समर्थक' : 'Lean'}</div>
-                    <div className="p-1 rounded bg-slate-100 text-slate-700">{isHindi ? 'अनिर्णित' : 'Neutral'}</div>
-                    <div className="p-1 rounded bg-rose-50 text-rose-700">{isHindi ? 'असहमत' : 'Dissent'}</div>
-                    <div className="p-1 rounded bg-rose-50 text-rose-800">{isHindi ? 'दृढ़ विरोधी' : 'Oppose'}</div>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -930,22 +911,22 @@ export const CreateDiscussionTab: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="py-2.5 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors flex items-center gap-1"
+              className="py-2.5 px-4 rounded-xl border border-rule bg-surface text-ink font-medium text-xs hover:bg-paper transition-colors flex items-center gap-1 cursor-pointer min-h-[44px]"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>{t.back}</span>
+              <span>{isHindi ? 'पीछे' : 'Back'}</span>
             </button>
             <button
               type="submit"
               disabled={isSubmitting || isUploadingMedia}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:brightness-105 active:scale-98 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-accent text-surface font-semibold text-xs hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 disabled:opacity-60 cursor-pointer min-h-[44px]"
             >
               <span>
                 {isUploadingMedia
-                  ? isHindi ? 'साक्ष्य अपलोड हो रहा है...' : 'Uploading Evidence...'
+                  ? isHindi ? 'साक्ष्य अपलोड हो रहा है...' : 'Uploading evidence...'
                   : isSubmitting
-                    ? t.posting
-                    : t.publishProposition}
+                    ? isHindi ? 'प्रकाशित हो रहा है...' : 'Publishing...'
+                    : isHindi ? 'बहस प्रकाशित करें' : 'Publish debate'}
               </span>
               <Send className="w-4 h-4" />
             </button>
