@@ -304,7 +304,7 @@ export const CitizenProfileTab: React.FC = () => {
                 <p className="text-[11px] text-ink-muted">
                   {isHindi
                     ? 'बहस सूची में जाएं और किसी भी चर्चा में अपना पक्ष रखें।'
-                    : 'Browse discussions and share your perspective in favor or against.'}
+                    : 'Browse discussions and share your perspective in support or opposition.'}
                 </p>
                 <button
                   type="button"
@@ -335,8 +335,8 @@ export const CitizenProfileTab: React.FC = () => {
                       }`}
                     >
                       {arg.stance === 'pro'
-                        ? (isHindi ? 'समर्थन' : 'In favor')
-                        : (isHindi ? 'विरोध' : 'Against')}
+                        ? (isHindi ? 'समर्थन' : 'Support')
+                        : (isHindi ? 'विरोध' : 'Oppose')}
                     </span>
                     <span className="text-[10px] text-ink-muted">
                       {arg.upvotes} {isHindi ? 'अपवोट' : 'upvotes'}
