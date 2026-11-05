@@ -1,14 +1,20 @@
 {
-  "name": "temp_scaffold",
+  "name": "janmanch",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "build:css": "node scripts/compile-css.js",
+    "prebuild": "node scripts/compile-css.js",
+    "predev": "node scripts/compile-css.js",
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "@tailwindcss/postcss": "^4.3.4",
+    "lucide-react": "^1.61.0",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -21,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vercel": "^65.5.0"
   }
 }

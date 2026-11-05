@@ -1,69 +1,104 @@
-import Image from "next/image";
+'use client';
+
+import React from 'react';
+import { AppProvider, useApp } from '@/context/AppContext';
+import { Header } from '@/components/Header';
+import { BottomNav } from '@/components/BottomNav';
+import { AgoraFeedTab } from '@/components/AgoraFeedTab';
+import { CommunityPulseTab } from '@/components/CommunityPulseTab';
+import { CreateDiscussionTab } from '@/components/CreateDiscussionTab';
+import { CitizenProfileTab } from '@/components/CitizenProfileTab';
+import { DeliberationFloorDrawer } from '@/components/DeliberationFloorDrawer';
+import { AuthModal } from '@/components/AuthModal';
+import { AuthGate } from '@/components/AuthGate';
+import { AlertTriangle, RefreshCw, LogOut } from 'lucide-react';
+
+const AgoraShell: React.FC = () => {
+  const { user, isAuthChecking, profileError, retryProfile, signOut, activeTab, drawerPost, setDrawerPost } = useApp();
+
+  // 1. Session state checking spinner
+  if (isAuthChecking) {
+    return (
+      <div className="max-w-md mx-auto min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <img src="/logo.png" alt="JanManch" className="w-10 h-10 object-contain drop-shadow-sm" />
+          <div className="absolute inset-0 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-black text-slate-800 tracking-wider uppercase">JanManch Agora</p>
+          <p className="text-[11px] text-slate-400 font-medium animate-pulse">Verifying Citizen Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Profile Fetch Error State (network or profile lookup failed)
+  if (profileError && !user) {
+    return (
+      <div className="max-w-md mx-auto min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
+          <AlertTriangle className="w-7 h-7" />
+        </div>
+        <div className="space-y-1 max-w-xs">
+          <h2 className="text-sm font-extrabold text-slate-900">Session Verification Error</h2>
+          <p className="text-xs text-slate-500 leading-relaxed font-medium">{profileError}</p>
+        </div>
+        <div className="flex items-center gap-2 pt-2">
+          <button
+            onClick={retryProfile}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Connection</span>
+          </button>
+          <button
+            onClick={signOut}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all"
+          >
+            <LogOut className="w-3.5 h-3.5 text-slate-500" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Mandatory Auth Gate: If no authenticated citizen session exists, do NOT show Agora feed or bottom navigation
+  if (!user) {
+    return <AuthGate />;
+  }
+
+  // 4. Authenticated Citizen Agora Experience
+  return (
+    <div className="max-w-md mx-auto min-h-screen bg-slate-50 text-slate-900 pb-24 relative flex flex-col shadow-xl border-x border-slate-200/80">
+      <Header />
+
+      <main className="flex-1 overflow-x-hidden">
+        {activeTab === 'agora' && <AgoraFeedTab />}
+        {activeTab === 'pulse' && <CommunityPulseTab />}
+        {activeTab === 'create' && <CreateDiscussionTab />}
+        {activeTab === 'profile' && <CitizenProfileTab />}
+      </main>
+
+      <BottomNav />
+
+      {/* Deliberation Floor Drawer */}
+      {drawerPost && (
+        <DeliberationFloorDrawer
+          post={drawerPost}
+          onClose={() => setDrawerPost(null)}
+        />
+      )}
+
+      <AuthModal />
+    </div>
+  );
+};
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <AppProvider>
+      <AgoraShell />
+    </AppProvider>
   );
 }
