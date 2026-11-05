@@ -1,5 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Mukta, Tiro_Devanagari_Hindi } from "next/font/google";
 import "./globals.css";
+
+const mukta = Mukta({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin", "devanagari"],
+  variable: "--font-mukta",
+  display: "swap",
+});
+
+const tiroHindi = Tiro_Devanagari_Hindi({
+  weight: "400",
+  subsets: ["latin", "devanagari"],
+  variable: "--font-serif",
+  display: "swap",
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://janmanch.in";
 
@@ -48,9 +63,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: "#2563EB",
+  themeColor: "#F6F5F9",
 };
 
 export default function RootLayout({
@@ -59,19 +72,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full bg-slate-50">
+    <html lang="en" className={`${mukta.variable} ${tiroHindi.variable} h-full bg-paper`}>
       <head>
-        <meta name="theme-color" content="#2563EB" />
+        <meta name="theme-color" content="#F6F5F9" />
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
       </head>
-      <body className="min-h-full bg-slate-50 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+      <body className="min-h-full bg-paper text-ink font-body antialiased selection:bg-accent selection:text-white">
         {children}
       </body>
     </html>

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { useApp } from '@/context/AppContext';
-import { AgoraPost, Topic, SurveyChoice, SurveyVotes } from '@/lib/types';
+import { AgoraPost, Topic, SurveyVotes } from '@/lib/types';
 import {
   ThumbsUp,
   ThumbsDown,
@@ -11,32 +11,20 @@ import {
   Share2,
   ChevronRight,
   Search,
-  Sparkles,
   Layers,
   MapPin,
   Clock,
   CheckCircle2,
   MessageCircle,
-  Users,
   Bookmark,
-  FileText,
-  ExternalLink,
   Flame,
-  Bot,
   ChevronDown,
-  ChevronUp,
   X,
   Compass,
 } from 'lucide-react';
-import { DICTIONARY, SURVEY_OPTIONS, TOPIC_NAMES, REGION_NAMES } from '@/lib/translations';
+import { DICTIONARY, TOPIC_NAMES, REGION_NAMES } from '@/lib/translations';
 import { SPECTRUM_LEVELS } from '@/constants/regions';
-
-const TOPIC_BADGES: Record<string, { bg: string; text: string; border: string }> = {
-  Economy: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200' },
-  Education: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200' },
-  'Civic Life': { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
-  Technology: { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200' },
-};
+import { CascadingRegionModal } from './CascadingRegionModal';
 
 const CATEGORIES: Topic[] = ['All Topics', 'Economy', 'Education', 'Civic Life', 'Technology'];
 
@@ -56,10 +44,29 @@ function formatRelativeTime(dateString: string, isMounted: boolean, isHindi: boo
 }
 
 function calculateSurveyStats(post: AgoraPost) {
+  const hasRawVotes = (post.agree_votes || 0) + (post.disagree_votes || 0) > 0;
+  const hasSurveyObj = Boolean(
+    post.survey_votes &&
+    ((post.survey_votes.strongly_agree || 0) +
+      (post.survey_votes.agree || 0) +
+      (post.survey_votes.neutral || 0) +
+      (post.survey_votes.disagree || 0) +
+      (post.survey_votes.strongly_disagree || 0)) > 0
+  );
+
+  if (!hasRawVotes && !hasSurveyObj) {
+    return {
+      votes: { strongly_agree: 0, agree: 0, neutral: 0, disagree: 0, strongly_disagree: 0 },
+      total: 0,
+      pct: { strongly_agree: 0, agree: 0, neutral: 0, disagree: 0, strongly_disagree: 0 },
+      hasVotes: false,
+    };
+  }
+
   const votes: SurveyVotes = post.survey_votes || {
     strongly_agree: Math.round(post.agree_votes * 0.55),
     agree: Math.max(0, Math.round(post.agree_votes * 0.45)),
-    neutral: Math.max(12, Math.round((post.agree_votes + post.disagree_votes) * 0.1)),
+    neutral: Math.round((post.agree_votes + post.disagree_votes) * 0.1),
     disagree: Math.max(0, Math.round(post.disagree_votes * 0.55)),
     strongly_disagree: Math.round(post.disagree_votes * 0.45),
   };
@@ -81,7 +88,7 @@ function calculateSurveyStats(post: AgoraPost) {
     strongly_disagree: Math.round(((votes.strongly_disagree || 0) / safeTotal) * 100),
   };
 
-  return { votes, total, pct };
+  return { votes, total, pct, hasVotes: total > 0 };
 }
 
 function getCardGeographicBadge(post: AgoraPost, language: 'en' | 'hi') {
@@ -110,10 +117,11 @@ function getCardGeographicBadge(post: AgoraPost, language: 'en' | 'hi') {
 }
 
 export const AgoraFeedTab: React.FC = () => {
-  const [mounted, setMounted] = useState(false);
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const {
     posts,
@@ -121,6 +129,7 @@ export const AgoraFeedTab: React.FC = () => {
     activeCountry,
     activeRegion,
     activeConstituency,
+    setGeographicFilter,
     activeTopic,
     setTopic,
     feedSort,
@@ -129,7 +138,6 @@ export const AgoraFeedTab: React.FC = () => {
     searchQuery,
     setSearchQuery,
     castPropositionVote,
-    castSurveyVote,
     user,
     setDrawerPost,
   } = useApp();
@@ -137,80 +145,33 @@ export const AgoraFeedTab: React.FC = () => {
   const t = DICTIONARY[language];
   const isHindi = language === 'hi';
 
+  const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+  const [modalStartView, setModalStartView] = useState<'country' | 'state' | 'constituency'>('country');
+
+  const isIndia = activeCountry === 'India';
+  const isAllConstituencies = !activeConstituency || activeConstituency === 'All Constituencies';
+  const hasSpecificFilter =
+    activeCountry !== 'Worldwide' &&
+    (activeRegion !== 'All India' || !isAllConstituencies || activeCountry !== 'India');
+
+  const handleOpenScopeSelector = () => {
+    setModalStartView('country');
+    setIsRegionModalOpen(true);
+  };
+
+  const handleResetToWorldwide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setGeographicFilter('Worldwide', 'All India', 'All Constituencies');
+  };
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<Record<string, boolean>>({});
   const [showOnboardingGuide, setShowOnboardingGuide] = useState(true);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // AI Summaries state: { [postId]: { loading: boolean, bullets?: string[], open: boolean } }
-  const [aiSummaries, setAiSummaries] = useState<
-    Record<string, { loading: boolean; bullets?: string[]; open: boolean }>
-  >({});
-
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2500);
-  };
-
-  // Toggle or fetch AI Summary
-  const handleToggleAiSummary = async (post: AgoraPost) => {
-    const current = aiSummaries[post.id];
-    if (current?.open) {
-      setAiSummaries((prev) => ({
-        ...prev,
-        [post.id]: { ...prev[post.id], open: false },
-      }));
-      return;
-    }
-
-    if (current?.bullets && current.bullets.length > 0) {
-      setAiSummaries((prev) => ({
-        ...prev,
-        [post.id]: { ...prev[post.id], open: true },
-      }));
-      return;
-    }
-
-    // Set loading
-    setAiSummaries((prev) => ({
-      ...prev,
-      [post.id]: { loading: true, open: true },
-    }));
-
-    try {
-      const postArgs = argumentsList.filter((a) => a.post_id === post.id);
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'summarize',
-          title: post.title,
-          description: post.description,
-          argumentsList: postArgs.map((a) => ({
-            author_name: a.author_name,
-            stance: a.stance,
-            content: a.content,
-          })),
-          language,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.bullets)) {
-        setAiSummaries((prev) => ({
-          ...prev,
-          [post.id]: { loading: false, bullets: data.bullets, open: true },
-        }));
-      } else {
-        throw new Error(data.error || 'Summary generation failed');
-      }
-    } catch (err: any) {
-      showToast(isHindi ? 'AI सारांश प्राप्त नहीं हो सका' : 'Could not generate summary');
-      setAiSummaries((prev) => ({
-        ...prev,
-        [post.id]: { loading: false, open: false },
-      }));
-    }
   };
 
   // Filter posts by country, region, constituency, topic, and search query
@@ -296,93 +257,119 @@ export const AgoraFeedTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-3.5 px-4 py-3">
+    <div className="space-y-3 px-4 py-3">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-900 border border-slate-700 text-white text-xs font-semibold shadow-xl animate-fade-in flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-ink border border-rule text-surface text-xs font-semibold shadow-lg animate-fade-in flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-support" />
           <span>{toastMessage}</span>
         </div>
       )}
 
+      {/* Quiet Filter Strip: Region Scope + Topic Selector */}
+      <div className="flex items-center gap-2">
+        {/* Region Scope Button */}
+        <button
+          type="button"
+          onClick={handleOpenScopeSelector}
+          className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 min-h-[44px] rounded-xl text-xs font-medium border border-rule bg-surface text-ink hover:bg-paper active:scale-98 transition-all focus-visible:outline-accent"
+          title={isHindi ? 'जनमत दायरा बदलें' : 'Change debate scope'}
+        >
+          <div className="flex items-center gap-1.5 truncate min-w-0">
+            {activeCountry === 'Worldwide' ? (
+              <>
+                <span className="text-sm shrink-0 leading-none">🌐</span>
+                <span className="truncate">{isHindi ? 'विश्वव्यापी (सभी विचार)' : 'Worldwide (All posts)'}</span>
+              </>
+            ) : isIndia && activeRegion === 'All India' ? (
+              <>
+                <span className="text-sm shrink-0 leading-none">🇮🇳</span>
+                <span className="truncate">{isHindi ? 'भारत (देशव्यापी)' : 'India (Countrywide)'}</span>
+              </>
+            ) : (
+              <>
+                <MapPin className="w-3.5 h-3.5 text-accent shrink-0" />
+                <span className="truncate font-semibold text-ink">
+                  {!isAllConstituencies ? `📍 ${activeConstituency}` : `📍 ${activeRegion}`}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0 ml-1">
+            {hasSpecificFilter && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={handleResetToWorldwide}
+                className="w-4 h-4 rounded-full bg-rule hover:bg-oppose-soft hover:text-oppose-strong text-ink-muted flex items-center justify-center transition-colors cursor-pointer"
+                title={isHindi ? 'विश्वव्यापी पर रीसेट करें' : 'Reset to worldwide'}
+                aria-label="Reset to worldwide"
+              >
+                <X className="w-2.5 h-2.5" />
+              </span>
+            )}
+            <ChevronDown className="w-3.5 h-3.5 text-ink-muted" />
+          </div>
+        </button>
+
+        {/* Topic Selector */}
+        <div className="relative shrink-0">
+          <select
+            value={activeTopic}
+            onChange={(e) => setTopic(e.target.value as Topic)}
+            className="appearance-none bg-surface border border-rule text-ink text-xs font-semibold pl-3 pr-8 py-2 min-h-[44px] rounded-xl focus-visible:outline-accent hover:bg-paper transition-colors cursor-pointer"
+            aria-label={isHindi ? 'विषय चुनें' : 'Filter by topic'}
+          >
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {TOPIC_NAMES[cat]?.[language] || cat}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-ink-muted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+      </div>
+
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t.searchPlaceholder}
-          className="w-full pl-10 pr-3.5 py-2 rounded-2xl bg-white border border-slate-200/90 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all"
+          className="w-full pl-10 pr-9 py-2 min-h-[44px] rounded-xl bg-surface border border-rule text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-accent transition-colors"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 font-bold"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-muted hover:text-ink font-semibold p-1"
           >
             {t.clear}
           </button>
         )}
       </div>
 
-      {/* 3-Step Interactive Guidance Strip */}
+      {/* Compact Dismissible One-Line Tip */}
       {showOnboardingGuide && (
-        <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-3.5 shadow-md shadow-blue-500/15 animate-fade-in border border-blue-400/30">
-          <div className="flex items-start justify-between gap-2 mb-2.5">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
-                <Compass className="w-3.5 h-3.5 text-white" />
-              </div>
-              <h4 className="text-xs font-extrabold tracking-tight">
-                {isHindi ? '3 चरणों में आपकी नागरिक शक्ति' : 'Your Civic Power in 3 Steps'}
-              </h4>
-            </div>
-            <button
-              onClick={() => setShowOnboardingGuide(false)}
-              className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
-              title={isHindi ? 'बंद करें' : 'Dismiss'}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-accent-soft border border-accent/20 text-xs text-ink animate-fade-in">
+          <div className="flex items-center gap-2 truncate min-w-0">
+            <span className="text-sm shrink-0">💡</span>
+            <span className="truncate font-medium text-ink">
+              {isHindi
+                ? 'नागरिक मंच: दायरा चुनें, अपना मत दर्ज करें और बहस में भाग लें।'
+                : 'Civic Agora: choose your scope, record your stance, and deliberate.'}
+            </span>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white/10 backdrop-blur-xs rounded-xl p-2 border border-white/10 flex flex-col items-center">
-              <span className="w-4 h-4 rounded-full bg-white text-blue-700 text-[10px] font-black flex items-center justify-center mb-1">
-                1
-              </span>
-              <span className="text-[10px] font-bold leading-tight">
-                {isHindi ? 'क्षेत्र चुनें' : 'Choose Region'}
-              </span>
-              <span className="text-[9px] text-blue-100/80 mt-0.5 leading-tight">
-                {isHindi ? 'शीर्ष फिल्टर' : 'Top selector'}
-              </span>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-xs rounded-xl p-2 border border-white/10 flex flex-col items-center">
-              <span className="w-4 h-4 rounded-full bg-white text-blue-700 text-[10px] font-black flex items-center justify-center mb-1">
-                2
-              </span>
-              <span className="text-[10px] font-bold leading-tight">
-                {isHindi ? 'मत दर्ज करें' : 'Cast 5-Pt Vote'}
-              </span>
-              <span className="text-[9px] text-blue-100/80 mt-0.5 leading-tight">
-                {isHindi ? 'सहमति स्केल' : 'Likert meter'}
-              </span>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-xs rounded-xl p-2 border border-white/10 flex flex-col items-center">
-              <span className="w-4 h-4 rounded-full bg-white text-blue-700 text-[10px] font-black flex items-center justify-center mb-1">
-                3
-              </span>
-              <span className="text-[10px] font-bold leading-tight">
-                {isHindi ? 'अखाड़ा बहस' : 'Deliberate'}
-              </span>
-              <span className="text-[9px] text-blue-100/80 mt-0.5 leading-tight">
-                {isHindi ? '+20 कर्मा' : '+20 Karma'}
-              </span>
-            </div>
-          </div>
+          <button
+            onClick={() => setShowOnboardingGuide(false)}
+            className="p-1 rounded-lg text-ink-muted hover:text-ink transition-colors shrink-0"
+            title={isHindi ? 'बंद करें' : 'Dismiss'}
+            aria-label="Dismiss tip"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -395,10 +382,10 @@ export const AgoraFeedTab: React.FC = () => {
             <button
               key={cat}
               onClick={() => setTopic(cat)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap shrink-0 active:scale-95 ${
+              className={`px-3 py-1.5 min-h-[36px] rounded-xl text-xs transition-all whitespace-nowrap shrink-0 active:scale-95 focus-visible:outline-accent border ${
                 isSelected
-                  ? 'bg-blue-600 text-white shadow-xs shadow-blue-500/20'
-                  : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-accent text-surface border-accent font-semibold'
+                  : 'bg-surface text-ink-muted border-rule hover:bg-paper hover:text-ink font-medium'
               }`}
             >
               {displayTopic}
@@ -407,14 +394,14 @@ export const AgoraFeedTab: React.FC = () => {
         })}
       </div>
 
-      {/* Feed Sorting Switcher (Latest vs. Most Active) */}
-      <div className="flex items-center justify-between gap-2 p-1 bg-slate-200/80 rounded-2xl">
+      {/* Feed Sorting Switcher: Simple Segmented Control */}
+      <div className="flex items-center justify-between gap-1 p-1 bg-paper border border-rule rounded-xl">
         <button
           onClick={() => setFeedSort('latest')}
-          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1.5 px-3 min-h-[36px] rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 focus-visible:outline-accent ${
             feedSort === 'latest'
-              ? 'bg-white text-blue-700 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-surface text-ink font-semibold border border-rule'
+              : 'text-ink-muted hover:text-ink font-medium border border-transparent'
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
@@ -423,14 +410,14 @@ export const AgoraFeedTab: React.FC = () => {
 
         <button
           onClick={() => setFeedSort('active')}
-          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1.5 px-3 min-h-[36px] rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 focus-visible:outline-accent ${
             feedSort === 'active'
-              ? 'bg-white text-blue-700 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-surface text-ink font-semibold border border-rule'
+              : 'text-ink-muted hover:text-ink font-medium border border-transparent'
           }`}
         >
-          <Flame className="w-3.5 h-3.5 text-orange-500" />
-          <span>{isHindi ? 'सक्रिय' : 'Most Active'}</span>
+          <Flame className="w-3.5 h-3.5" />
+          <span>{isHindi ? 'सक्रिय' : 'Most active'}</span>
         </button>
       </div>
 
@@ -466,423 +453,253 @@ export const AgoraFeedTab: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3.5">
-          {sortedPosts.map((post) => {
-            const topicColors = TOPIC_BADGES[post.topic] || {
-              bg: 'bg-slate-100',
-              text: 'text-slate-800',
-              border: 'border-slate-200',
-            };
-
+          {sortedPosts.map((post, index) => {
+            const isFeatured = index === 0;
             const postArgs = argumentsList.filter((a) => a.post_id === post.id);
             const stats = calculateSurveyStats(post);
             const userChoice = user?.votedSurveys?.[post.id];
             const authorHandle =
               post.author_username || post.author_name.toLowerCase().replace(/\s+/g, '_');
             const isBookmarked = Boolean(bookmarkedIds[post.id]);
-            const postSummary = aiSummaries[post.id];
 
             return (
               <article
                 key={post.id}
-                className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow space-y-3"
+                className={`bg-surface border rounded-xl p-4 transition-all space-y-3 ${
+                  isFeatured
+                    ? 'border-accent/40 ring-1 ring-accent/20'
+                    : 'border-rule'
+                }`}
               >
-                {/* Card Top: Topic, Geographic Badge & Relative Posting Time */}
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shrink-0 ${topicColors.bg} ${topicColors.text} ${topicColors.border}`}
-                    >
+                {/* 1. Meta Line: Topic, Region, Time */}
+                <div className="flex items-center justify-between text-xs text-ink-muted leading-none gap-2">
+                  <div className="flex items-center gap-1.5 truncate min-w-0">
+                    <span className="font-semibold text-accent truncate">
                       {TOPIC_NAMES[post.topic as Topic]?.[language] || post.topic}
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200/90 truncate max-w-[210px] shrink-0">
+                    <span>•</span>
+                    <span className="truncate">
                       {getCardGeographicBadge(post, language)}
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium shrink-0 ml-auto">
-                    <Clock className="w-3 h-3 text-slate-400" />
-                    <span>{formatRelativeTime(post.created_at, mounted, isHindi)}</span>
-                  </div>
+                  <span className="shrink-0 text-[11px] text-ink-muted">
+                    {formatRelativeTime(post.created_at, mounted, isHindi)}
+                  </span>
                 </div>
 
-                {/* Author Info */}
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-[11px]">
+                {/* 2. Author Row */}
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center font-bold text-xs shrink-0">
                     {post.author_name.charAt(0)}
                   </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-slate-900">{post.author_name}</span>
-                    <span className="text-[11px] text-slate-400 font-normal">@{authorHandle}</span>
+                  <div className="flex items-center gap-1.5 min-w-0 truncate text-xs">
+                    <span className="font-semibold text-ink truncate">{post.author_name}</span>
+                    <span className="text-ink-muted truncate">@{authorHandle}</span>
                     {post.is_verified_citizen && (
-                      <span title="Verified Citizen Voter">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span title="Verified citizen">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-accent shrink-0" />
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Proposition Title & Context */}
-                <div className="space-y-1.5 cursor-pointer" onClick={() => setDrawerPost(post)}>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 leading-snug hover:text-blue-700 transition-colors">
-                    {isHindi && post.title_hi ? post.title_hi : post.title}
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
-                    {isHindi && (post.description_hi || post.context_hi)
-                      ? post.description_hi || post.context_hi
-                      : post.description}
-                  </p>
-                </div>
+                {/* 3. Title in Serif Font (2-3 lines max) */}
+                <h2
+                  onClick={() => setDrawerPost(post)}
+                  className={`font-serif font-semibold text-ink leading-snug line-clamp-3 hover:text-accent transition-colors cursor-pointer ${
+                    isFeatured ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
+                  }`}
+                >
+                  {isHindi && post.title_hi ? post.title_hi : post.title}
+                </h2>
 
-                {/* Multi-Media Evidence & Attachment Rendering */}
-                {post.media_url && (
-                  <div className="pt-0.5 space-y-2">
-                    {/* Case 1: Image Evidence */}
-                    {(post.media_type === 'image' || (!post.media_type && Boolean(post.media_url.match(/\.(png|jpe?g|webp|gif)($|\?)/i)))) && (
-                      <div className="rounded-xl overflow-hidden border border-slate-200/90 bg-slate-100 max-h-64 shadow-xs">
-                        <img
-                          src={post.media_url}
-                          alt={post.title}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLightboxImage(post.media_url!);
-                          }}
-                          className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
+                {/* 4. One-Line Description */}
+                <p
+                  onClick={() => setDrawerPost(post)}
+                  className="text-xs text-ink-muted line-clamp-1 cursor-pointer"
+                >
+                  {isHindi && (post.description_hi || post.context_hi)
+                    ? post.description_hi || post.context_hi
+                    : post.description}
+                </p>
 
-                    {/* Case 2: Video Evidence */}
-                    {(post.media_type === 'video' || (!post.media_type && Boolean(post.media_url.match(/\.(mp4|webm|mov)($|\?)/i)))) && (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded-xl overflow-hidden border border-slate-200 bg-black max-h-64 shadow-xs"
-                      >
-                        <video
-                          src={post.media_url}
-                          controls
-                          playsInline
-                          preload="metadata"
-                          className="w-full max-h-64 object-contain"
-                        />
-                      </div>
-                    )}
-
-                    {/* Case 3: Document Evidence (PDF) */}
-                    {(post.media_type === 'document' || (!post.media_type && Boolean(post.media_url.match(/\.(pdf|doc|docx)($|\?)/i)))) && (
-                      <a
-                        href={post.media_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-black text-xs shrink-0">
-                            PDF
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-800 truncate">
-                              {post.media_filename || (isHindi ? 'संलग्न आधिकारिक साक्ष्य दस्तावेज़' : 'Official Evidence Document')}
-                            </p>
-                            <p className="text-[10px] text-slate-500">
-                              {isHindi ? 'पीडीएफ दस्तावेज़ • नए टैब में देखें' : 'PDF Document • Tap to open in new tab'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs font-bold text-blue-600 shrink-0 ml-2">
-                          <span>{isHindi ? 'दस्तावेज़ देखें' : 'View Document'}</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </div>
-                      </a>
-                    )}
+                {/* 5. The Stance Bar (The Hero) */}
+                {(!stats.hasVotes && (post.voting_mode !== 'verdict' || (post.agree_votes + post.disagree_votes === 0))) ? (
+                  <div className="space-y-1 pt-1">
+                    <div className={`w-full ${isFeatured ? 'h-4' : 'h-3'} rounded-full bg-rule/70 overflow-hidden flex items-center justify-center px-3`}>
+                      <span className="text-[10px] font-medium text-ink-muted select-none">
+                        {isHindi ? 'अभी कोई मत नहीं। पहले बनें।' : 'No votes yet. Be the first.'}
+                      </span>
+                    </div>
                   </div>
+                ) : post.voting_mode === 'verdict' ? (
+                  (() => {
+                    const total = post.agree_votes + post.disagree_votes;
+                    const supportPct = Math.round((post.agree_votes / total) * 100);
+                    const opposePct = 100 - supportPct;
+                    return (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-xs font-semibold px-0.5">
+                          <span className="text-support font-bold flex items-center gap-1">
+                            <span>{isHindi ? 'समर्थन' : 'Support'}</span>
+                            <span>{supportPct}%</span>
+                          </span>
+                          <span className="text-oppose font-bold flex items-center gap-1">
+                            <span>{opposePct}%</span>
+                            <span>{isHindi ? 'विरोध' : 'Oppose'}</span>
+                          </span>
+                        </div>
+                        <div
+                          className={`w-full ${isFeatured ? 'h-4' : 'h-3'} rounded-full bg-rule/40 overflow-hidden flex`}
+                          title={`Support ${supportPct}%, Oppose ${opposePct}%`}
+                        >
+                          <div style={{ width: `${supportPct}%` }} className="h-full bg-support transition-all duration-300" />
+                          <div style={{ width: `${opposePct}%` }} className="h-full bg-oppose transition-all duration-300" />
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  (() => {
+                    const supportPct = stats.pct.strongly_agree + stats.pct.agree;
+                    const opposePct = stats.pct.disagree + stats.pct.strongly_disagree;
+                    return (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-xs font-semibold px-0.5">
+                          <span className="text-support font-bold flex items-center gap-1">
+                            <span>{isHindi ? 'समर्थन' : 'Support'}</span>
+                            <span>{supportPct}%</span>
+                          </span>
+                          <span className="text-oppose font-bold flex items-center gap-1">
+                            <span>{opposePct}%</span>
+                            <span>{isHindi ? 'विरोध' : 'Oppose'}</span>
+                          </span>
+                        </div>
+                        <div
+                          className={`w-full ${isFeatured ? 'h-4' : 'h-3'} rounded-full bg-rule/40 overflow-hidden flex`}
+                          title={`Support ${supportPct}%, Oppose ${opposePct}%`}
+                        >
+                          <div style={{ width: `${stats.pct.strongly_agree}%` }} className="h-full bg-support-strong transition-all duration-300" />
+                          <div style={{ width: `${stats.pct.agree}%` }} className="h-full bg-support transition-all duration-300" />
+                          <div style={{ width: `${stats.pct.neutral}%` }} className="h-full bg-neutral transition-all duration-300" />
+                          <div style={{ width: `${stats.pct.disagree}%` }} className="h-full bg-oppose transition-all duration-300" />
+                          <div style={{ width: `${stats.pct.strongly_disagree}%` }} className="h-full bg-oppose-strong transition-all duration-300" />
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
 
-                {/* Optional External News Link */}
-                {post.source_url && (
-                  <div className="pt-0.5">
-                    <a
-                      href={post.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50/80 hover:bg-blue-100 border border-blue-200 text-blue-700 text-[11px] font-semibold transition-colors"
+                {/* 6. Vote Buttons */}
+                {post.voting_mode === 'verdict' ? (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      onClick={() => castPropositionVote(post.id, 'endorse')}
+                      className={`py-2 px-3 min-h-[44px] rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 border focus-visible:outline-accent ${
+                        user?.votedPropositions?.[post.id] === 'endorse' || user?.votedDebates?.[post.id] === 'pro'
+                          ? 'bg-support text-surface border-support font-bold'
+                          : 'bg-surface text-support border border-support/40 hover:bg-support-soft'
+                      }`}
                     >
-                      <ExternalLink className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="truncate max-w-[200px]">{t.newsArticle}</span>
-                    </a>
+                      <ThumbsUp className="w-4 h-4" />
+                      <span>{isHindi ? 'समर्थन' : 'Support'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => castPropositionVote(post.id, 'oppose')}
+                      className={`py-2 px-3 min-h-[44px] rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 border focus-visible:outline-accent ${
+                        user?.votedPropositions?.[post.id] === 'oppose' || user?.votedDebates?.[post.id] === 'con'
+                          ? 'bg-oppose text-surface border-oppose font-bold'
+                          : 'bg-surface text-oppose border border-oppose/40 hover:bg-oppose-soft'
+                      }`}
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                      <span>{isHindi ? 'विरोध' : 'Oppose'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-5 gap-1.5 pt-1">
+                    {SPECTRUM_LEVELS.map((level) => {
+                      const isChosen =
+                        userChoice === level.key ||
+                        user?.votedPropositions?.[post.id] === level.key;
+                      const label = isHindi ? level.labelHi : level.labelEn;
+
+                      return (
+                        <button
+                          key={level.key}
+                          onClick={() => castPropositionVote(post.id, level.key)}
+                          className={`flex flex-col items-center justify-center py-2 px-1 min-h-[44px] rounded-xl text-center transition-all active:scale-95 border focus-visible:outline-accent ${
+                            isChosen
+                              ? `${level.barColor} text-surface border-transparent font-bold`
+                              : 'bg-surface text-ink border border-rule hover:bg-paper'
+                          }`}
+                          title={label}
+                          aria-label={label}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full mb-1 shrink-0 ${
+                              isChosen ? 'bg-surface' : level.barColor
+                            }`}
+                          />
+                          <span className="text-[10px] leading-tight font-medium break-words text-center line-clamp-2 w-full">
+                            {label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Requirement 5: AI COPILOT SUMMARY BOX (Collapsible on Card) */}
-                <div className="pt-0.5">
-                  <button
-                    onClick={() => handleToggleAiSummary(post)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200 text-indigo-700 transition-all shadow-2xs"
-                  >
-                    <Bot className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>{postSummary?.open ? t.hideSummary : t.aiSummary}</span>
-                    {postSummary?.loading ? (
-                      <Sparkles className="w-3 h-3 animate-spin text-purple-600" />
-                    ) : postSummary?.open ? (
-                      <ChevronUp className="w-3 h-3 text-indigo-600" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3 text-indigo-600" />
-                    )}
-                  </button>
-
-                  {postSummary?.open && (
-                    <div className="mt-2 p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 border border-indigo-200/80 shadow-xs space-y-2 animate-fade-in">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10.5px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-indigo-600" />
-                          <span>{t.aiSummaryHeading}</span>
-                        </span>
-                        <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                          Gemini 1.5
-                        </span>
-                      </div>
-
-                      {postSummary.loading ? (
-                        <div className="flex items-center gap-2 text-xs text-indigo-600 py-2">
-                          <Sparkles className="w-4 h-4 animate-spin" />
-                          <span>{t.aiGenerating}</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5 text-xs text-slate-700 leading-relaxed">
-                          {postSummary.bullets?.map((b, idx) => (
-                            <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-indigo-600 font-bold mt-0.5">•</span>
-                              <p className="flex-1 font-medium">{b}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Dynamic Voting Engine: The Verdict (2-Way) vs The Spectrum (5-Tier) */}
-                <div className="space-y-3 pt-1">
-                  {post.voting_mode === 'verdict' ? (
-                    /* 1. THE VERDICT: Clear 2-Way Endorse vs Oppose */
-                    <div className="space-y-2">
-                      {/* Split Progress Bar with percentages & total counts */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-emerald-700 flex items-center gap-1.5">
-                            <ThumbsUp className="w-3.5 h-3.5" />
-                            <span>
-                              {isHindi ? 'पक्ष में' : 'Endorse'} {Math.round((post.agree_votes / Math.max(1, post.agree_votes + post.disagree_votes)) * 100)}%
-                            </span>
-                            <span className="text-[10px] font-normal text-slate-400">
-                              ({post.agree_votes})
-                            </span>
-                          </span>
-
-                          <span className="text-rose-700 flex items-center gap-1.5">
-                            <span className="text-[10px] font-normal text-slate-400">
-                              ({post.disagree_votes})
-                            </span>
-                            <span>
-                              {isHindi ? 'विपक्ष में' : 'Oppose'} {100 - Math.round((post.agree_votes / Math.max(1, post.agree_votes + post.disagree_votes)) * 100)}%
-                            </span>
-                            <ThumbsDown className="w-3.5 h-3.5" />
-                          </span>
-                        </div>
-
-                        {/* 2-Tone Split Progress Bar */}
-                        <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                          <div
-                            style={{
-                              width: `${Math.round((post.agree_votes / Math.max(1, post.agree_votes + post.disagree_votes)) * 100)}%`,
-                            }}
-                            className="h-full bg-emerald-600 transition-all duration-300"
-                          />
-                          <div
-                            style={{
-                              width: `${100 - Math.round((post.agree_votes / Math.max(1, post.agree_votes + post.disagree_votes)) * 100)}%`,
-                            }}
-                            className="h-full bg-rose-600 transition-all duration-300"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Dual Interactive Option Buttons: Endorse vs Oppose (Single clean icon per action) */}
-                      <div className="grid grid-cols-2 gap-2 pt-0.5">
-                        <button
-                          onClick={() => castPropositionVote(post.id, 'endorse')}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 border shadow-2xs ${
-                            user?.votedPropositions?.[post.id] === 'endorse' || user?.votedDebates?.[post.id] === 'pro'
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/30'
-                              : 'bg-emerald-50/70 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
-                          }`}
-                        >
-                          <ThumbsUp className="w-3.5 h-3.5" />
-                          <span>{isHindi ? 'पक्ष में' : 'Endorse'}</span>
-                          <span className="text-[10px] opacity-80 font-normal">
-                            ({Math.round((post.agree_votes / Math.max(1, post.agree_votes + post.disagree_votes)) * 100)}%)
-                          </span>
-                        </button>
-
-                        <button
-                          onClick={() => castPropositionVote(post.id, 'oppose')}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 border shadow-2xs ${
-                            user?.votedPropositions?.[post.id] === 'oppose' || user?.votedDebates?.[post.id] === 'con'
-                              ? 'bg-rose-600 text-white border-rose-600 shadow-xs ring-2 ring-rose-500/30'
-                              : 'bg-rose-50/70 hover:bg-rose-100 text-rose-800 border-rose-200'
-                          }`}
-                        >
-                          <ThumbsDown className="w-3.5 h-3.5" />
-                          <span>{isHindi ? 'विपक्ष में' : 'Oppose'}</span>
-                          <span className="text-[10px] opacity-80 font-normal">
-                            ({100 - Math.round((post.agree_votes / Math.max(1, post.agree_votes + post.disagree_votes)) * 100)}%)
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* 2. THE SPECTRUM: 5-Tier Likert Consensus Meter */
-                    <div className="space-y-2">
-                      {/* Continuous 5-Segmented Consensus Bar */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-emerald-800 font-bold">
-                            {isHindi ? 'समर्थक' : 'Support'} {stats.pct.strongly_agree + stats.pct.agree}%
-                          </span>
-
-                          <span className="text-slate-500 font-semibold text-[10px]">
-                            {isHindi ? 'अनिर्णित' : 'Undecided'} {stats.pct.neutral}%
-                          </span>
-
-                          <span className="text-rose-800 font-bold">
-                            {isHindi ? 'विरोधी' : 'Dissent'} {stats.pct.disagree + stats.pct.strongly_disagree}%
-                          </span>
-                        </div>
-
-                        {/* Continuous 5-Segmented Color Bar: Dark Emerald, Light Emerald, Slate Gray, Light Rose, Crimson */}
-                        <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                          <div
-                            style={{ width: `${stats.pct.strongly_agree}%` }}
-                            className="h-full bg-emerald-800 transition-all duration-300"
-                            title={`Firmly Back: ${stats.pct.strongly_agree}%`}
-                          />
-                          <div
-                            style={{ width: `${stats.pct.agree}%` }}
-                            className="h-full bg-emerald-500 transition-all duration-300"
-                            title={`Lean Support: ${stats.pct.agree}%`}
-                          />
-                          <div
-                            style={{ width: `${stats.pct.neutral}%` }}
-                            className="h-full bg-slate-400 transition-all duration-300"
-                            title={`Undecided: ${stats.pct.neutral}%`}
-                          />
-                          <div
-                            style={{ width: `${stats.pct.disagree}%` }}
-                            className="h-full bg-rose-400 transition-all duration-300"
-                            title={`Lean Dissent: ${stats.pct.disagree}%`}
-                          />
-                          <div
-                            style={{ width: `${stats.pct.strongly_disagree}%` }}
-                            className="h-full bg-rose-800 transition-all duration-300"
-                            title={`Firmly Oppose: ${stats.pct.strongly_disagree}%`}
-                          />
-                        </div>
-                      </div>
-
-                      {/* 5 Compact, Touch-Friendly Option Pills */}
-                      <div className="grid grid-cols-5 gap-1 w-full mt-2">
-                        {SPECTRUM_LEVELS.map((level) => {
-                          const isChosen =
-                            userChoice === level.key ||
-                            user?.votedPropositions?.[post.id] === level.key;
-                          const label = isHindi ? level.labelHi : level.labelEn;
-                          const percentage = stats.pct[level.key];
-
-                          return (
-                            <button
-                              key={level.key}
-                              onClick={() => castPropositionVote(post.id, level.key)}
-                              className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg border text-center w-full min-w-0 overflow-hidden transition-all active:scale-95 ${
-                                isChosen
-                                  ? `${level.barColor} text-white shadow-xs ring-2 ring-blue-500/30 border-transparent`
-                                  : `${level.bgLight} ${level.color} ${level.badgeBorder} hover:opacity-90`
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full mb-0.5 shrink-0 ${
-                                  isChosen ? 'bg-white' : level.barColor
-                                }`}
-                              />
-                              <span className="text-[9px] font-bold leading-none tracking-tight truncate w-full text-center px-0.5">
-                                {label}
-                              </span>
-                              <span className={`text-[10px] font-semibold mt-0.5 leading-none ${isChosen ? 'text-white/90' : 'text-slate-500'}`}>
-                                {percentage}%
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 4. CLEAN METADATA FOOTER (Clearly separated below voting buttons, no overlap) */}
-                  <div className="text-xs text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
-                    <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-                      <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span>
-                        {post.voting_mode === 'verdict' ? post.agree_votes + post.disagree_votes : stats.total}{' '}
-                        {isHindi ? 'नागरिकों ने भाग लिया' : 'citizens participated'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleWhatsAppShare(post)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-50 text-slate-500 hover:text-emerald-700 font-semibold text-[11px] transition-colors"
-                        title="Share on WhatsApp"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{t.share}</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleBookmark(post.id)}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isBookmarked
-                            ? 'bg-blue-50 text-blue-600 font-bold'
-                            : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
-                        }`}
-                        title={isBookmarked ? 'Bookmarked' : 'Bookmark this debate'}
-                      >
-                        <Bookmark className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleShare(post)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                        title="Copy Link"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* "Join Deliberation Floor" Button */}
+                {/* 7. Single "Join discussion" Row with argument count & action icons */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-rule">
                   <button
                     onClick={() => setDrawerPost(post)}
-                    className="w-full mt-1 py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 group"
+                    className="flex-1 min-w-0 py-2 px-3 min-h-[44px] rounded-xl bg-accent-soft hover:bg-accent/15 text-accent font-semibold text-xs transition-colors flex items-center justify-between group focus-visible:outline-accent"
                   >
-                    <MessageSquare className="w-4 h-4 text-blue-600 mr-1.5 shrink-0" />
-                    <span>
-                      {isHindi
-                        ? `विचार-मंथन कक्ष में भाग लें (${postArgs.length} तर्क)`
-                        : `Join Deliberation Floor (${postArgs.length} arguments)`}
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <div className="flex items-center gap-2 truncate">
+                      <MessageSquare className="w-4 h-4 text-accent shrink-0" />
+                      <span className="truncate">
+                        {isHindi
+                          ? `चर्चा में भाग लें (${postArgs.length} तर्क)`
+                          : `Join discussion (${postArgs.length} arguments)`}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-accent group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </button>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleWhatsAppShare(post)}
+                      className="p-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-paper text-ink-muted hover:text-ink transition-colors flex items-center justify-center focus-visible:outline-accent"
+                      title={isHindi ? 'व्हाट्सएप पर साझा करें' : 'Share on WhatsApp'}
+                      aria-label="Share on WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4 text-support" />
+                    </button>
+
+                    <button
+                      onClick={() => handleBookmark(post.id)}
+                      className={`p-2 min-h-[44px] min-w-[44px] rounded-xl transition-colors flex items-center justify-center focus-visible:outline-accent ${
+                        isBookmarked
+                          ? 'bg-accent-soft text-accent'
+                          : 'hover:bg-paper text-ink-muted hover:text-ink'
+                      }`}
+                      title={isBookmarked ? 'Bookmarked' : 'Bookmark this debate'}
+                      aria-label="Bookmark"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => handleShare(post)}
+                      className="p-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-paper text-ink-muted hover:text-ink transition-colors flex items-center justify-center focus-visible:outline-accent"
+                      title={isHindi ? 'लिंक कॉपी करें' : 'Copy link'}
+                      aria-label="Copy link"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </article>
             );
@@ -911,6 +728,12 @@ export const AgoraFeedTab: React.FC = () => {
           />
         </div>
       )}
+      {/* Slide-Up Bottom Sheet for Geographic & Region Filtering */}
+      <CascadingRegionModal
+        isOpen={isRegionModalOpen}
+        onClose={() => setIsRegionModalOpen(false)}
+        initialView={modalStartView}
+      />
     </div>
   );
 };

@@ -1,28 +1,138 @@
 @import "tailwindcss";
 
+@theme {
+  /* JanManch Civic Editorial Tokens */
+  --color-paper: #F6F5F9;
+  --color-surface: #FFFFFF;
+  --color-ink: #17162B;
+  --color-ink-muted: #5B5A72;
+  --color-accent: #4B2E83;
+  --color-accent-soft: #ECE7F5;
+  --color-support-strong: #0B5D57;
+  --color-support: #14A39A;
+  --color-support-soft: #E3F5F3;
+  --color-oppose-strong: #8F3A06;
+  --color-oppose: #E08A2E;
+  --color-oppose-soft: #FBEFE0;
+  --color-neutral: #A9A8BA;
+  --color-rule: #D9D7E3;
+
+  --font-body: var(--font-mukta), 'Mukta', system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-serif), 'Tiro Devanagari Hindi', Georgia, serif;
+  --font-sans: var(--font-mukta), 'Mukta', system-ui, -apple-system, sans-serif;
+
+  --radius-card: 12px;
+  --radius-button: 12px;
+  --radius-input: 12px;
+
+  /* App-wide remap from old generic blue/indigo/emerald/rose to design tokens */
+  --color-blue-50: var(--color-accent-soft);
+  --color-blue-100: #DDD5ED;
+  --color-blue-200: #C7B8E0;
+  --color-blue-500: var(--color-accent);
+  --color-blue-600: var(--color-accent);
+  --color-blue-700: #3D256B;
+  --color-blue-800: #2F1D53;
+  --color-blue-900: #23163E;
+
+  --color-indigo-50: var(--color-accent-soft);
+  --color-indigo-100: #DDD5ED;
+  --color-indigo-200: #C7B8E0;
+  --color-indigo-500: var(--color-accent);
+  --color-indigo-600: var(--color-accent);
+  --color-indigo-700: #3D256B;
+  --color-indigo-800: #2F1D53;
+  --color-indigo-900: #23163E;
+
+  --color-emerald-50: var(--color-support-soft);
+  --color-emerald-100: #C6ECE8;
+  --color-emerald-200: #93D9D2;
+  --color-emerald-500: var(--color-support);
+  --color-emerald-600: var(--color-support);
+  --color-emerald-700: var(--color-support-strong);
+  --color-emerald-800: var(--color-support-strong);
+  --color-emerald-900: #063733;
+
+  --color-rose-50: var(--color-oppose-soft);
+  --color-rose-100: #F6DFBF;
+  --color-rose-200: #EEC895;
+  --color-rose-400: var(--color-oppose);
+  --color-rose-500: var(--color-oppose);
+  --color-rose-600: var(--color-oppose);
+  --color-rose-700: var(--color-oppose-strong);
+  --color-rose-800: var(--color-oppose-strong);
+  --color-rose-900: #572202;
+
+  --color-slate-50: var(--color-paper);
+  --color-slate-100: #ECEBEF;
+  --color-slate-200: var(--color-rule);
+  --color-slate-300: #C5C3D2;
+  --color-slate-400: var(--color-neutral);
+  --color-slate-500: var(--color-ink-muted);
+  --color-slate-600: #46455A;
+  --color-slate-700: #313045;
+  --color-slate-800: #222136;
+  --color-slate-900: var(--color-ink);
+  --color-slate-950: #0E0D1B;
+}
+
 @layer base {
+  * {
+    border-color: var(--color-rule);
+  }
+
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
-    font-family: 'Noto Sans Devanagari', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-ink);
+  }
+
+  /* Accessible focus indicators */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
 
-/* Custom scrollbar */
+/* Quiet civic institution: remove soft shadows, rely on 1px rule borders */
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl,
+.shadow-xs,
+.shadow-2xs {
+  box-shadow: none !important;
+}
+
+/* Remove all generic SaaS gradients */
+.bg-gradient-to-r,
+.bg-gradient-to-br,
+.bg-gradient-to-tr,
+.bg-gradient-to-t,
+.bg-gradient-to-b {
+  background-image: none !important;
+}
+
+/* Custom scrollbar matching paper and rule tokens */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--color-paper);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-rule);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-neutral);
 }
 
 @keyframes slideUp {
@@ -61,4 +171,16 @@
 
 .pulse-listening {
   animation: pulseAudio 1.4s ease-in-out infinite;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
